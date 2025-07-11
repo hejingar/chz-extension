@@ -1,12 +1,17 @@
 // Background script pour l'extension Chrome
+import { ethers } from 'ethers';
+
 console.log('Background script started');
 
-// Configuration pour WebSocket et polling
-const WEBSOCKET_URL = 'ws://localhost:8080';
+// Configuration pour WebSocket EVM et polling
+const CHILIZ_RPC_URL = 'wss://spicy-rpc-ws.chiliz.com/';
 const POLLING_INTERVAL = 30000; // 30 secondes
 
-let websocket: WebSocket | null = null;
+// Variables globales
+let provider: ethers.WebSocketProvider | null = null;
+let userAddress: string | null = null;
 let pollingTimer: number | null = null;
+let isMonitoringBlocks = false;
 
 // Initialisation du background script
 chrome.runtime.onStartup.addListener(() => {
@@ -25,11 +30,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   
   switch (request.action) {
     case 'connect_websocket':
-      connectWebSocket();
+      connectToChilizRPC();
       sendResponse({ success: true });
       break;
     case 'disconnect_websocket':
-      disconnectWebSocket();
+      disconnectFromChilizRPC();
       sendResponse({ success: true });
       break;
     case 'start_polling':
@@ -42,8 +47,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       break;
     case 'get_status':
       sendResponse({ 
-        websocket: websocket?.readyState === WebSocket.OPEN,
-        polling: pollingTimer !== null
+        websocket: provider !== null,
+        polling: pollingTimer !== null,
+        monitoring: isMonitoringBlocks
       });
       break;
     default:
@@ -54,89 +60,199 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 });
 
 // Initialisation des services
-function initializeServices() {
-  // Récupérer l'adresse publique stockée
-  chrome.storage.local.get(['userAddress'], (result) => {
+async function initializeServices() {
+  try {
+    // Récupérer l'adresse publique stockée
+    const result = await chrome.storage.local.get(['userAddress']);
     if (result.userAddress) {
-      console.log('User address found:', result.userAddress);
-      // Démarrer automatiquement les services si un utilisateur est connecté
-      connectWebSocket();
+      userAddress = result.userAddress;
+      console.log('User address found:', userAddress);
+      
+      // Démarrer automatiquement la surveillance si un utilisateur est connecté
+      await connectToChilizRPC();
     }
-  });
+  } catch (error) {
+    console.error('Error initializing services:', error);
+  }
 }
 
-// Gestion WebSocket
-function connectWebSocket() {
-  if (websocket && websocket.readyState === WebSocket.OPEN) {
-    console.log('WebSocket already connected');
+// Connexion au provider WebSocket Chiliz Chain 2.0
+async function connectToChilizRPC() {
+  if (provider) {
+    console.log('Already connected to Chiliz RPC');
     return;
   }
 
   try {
-    websocket = new WebSocket(WEBSOCKET_URL);
+    console.log('Connecting to Chiliz Chain 2.0...');
+    provider = new ethers.WebSocketProvider(CHILIZ_RPC_URL);
     
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-      // Envoyer l'adresse de l'utilisateur si disponible
-      chrome.storage.local.get(['userAddress'], (result) => {
-        if (result.userAddress && websocket) {
-          websocket.send(JSON.stringify({
-            type: 'auth',
-            address: result.userAddress
-          }));
-        }
-      });
-    };
+    // Test de connexion
+    const network = await provider.getNetwork();
+    console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
     
-    websocket.onmessage = (event) => {
-      console.log('WebSocket message:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        handleWebSocketMessage(data);
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
+    // Démarrer la surveillance des blocs
+    await startBlockMonitoring();
     
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
-      websocket = null;
+    // Gestion des erreurs WebSocket - utiliser les événements du provider
+    provider.on('error', (error) => {
+      console.error('WebSocket error:', error);
+    });
+    
+    provider.on('close', () => {
+      console.log('WebSocket connection closed');
+      provider = null;
+      isMonitoringBlocks = false;
+      
       // Reconnexion automatique après 5 secondes
       setTimeout(() => {
-        connectWebSocket();
+        connectToChilizRPC();
       }, 5000);
-    };
-    
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    });
     
   } catch (error) {
-    console.error('Error connecting WebSocket:', error);
+    console.error('Error connecting to Chiliz RPC:', error);
+    provider = null;
   }
 }
 
-function disconnectWebSocket() {
-  if (websocket) {
-    websocket.close();
-    websocket = null;
+// Déconnexion du provider
+function disconnectFromChilizRPC() {
+  if (provider) {
+    console.log('Disconnecting from Chiliz RPC');
+    provider.destroy();
+    provider = null;
+    isMonitoringBlocks = false;
   }
 }
 
-// Gestion du polling
+// Démarrage de la surveillance des blocs
+async function startBlockMonitoring() {
+  if (!provider || isMonitoringBlocks) {
+    return;
+  }
+  
+  try {
+    console.log('Starting block monitoring...');
+    isMonitoringBlocks = true;
+    
+    // Écouter les nouveaux blocs
+    provider.on('block', async (blockNumber) => {
+      console.log(`New block: ${blockNumber}`);
+      await inspectBlockTransactions(blockNumber);
+    });
+    
+    console.log('Block monitoring started');
+  } catch (error) {
+    console.error('Error starting block monitoring:', error);
+    isMonitoringBlocks = false;
+  }
+}
+
+// Inspection des transactions dans un bloc
+async function inspectBlockTransactions(blockNumber: number) {
+  if (!provider || !userAddress) {
+    return;
+  }
+  
+  try {
+    console.log(`Inspecting block ${blockNumber} for user transactions...`);
+    
+    // Récupérer le bloc avec ses transactions
+    const block = await provider.getBlock(blockNumber, true);
+    
+    if (!block || !block.transactions) {
+      console.log('No transactions in block');
+      return;
+    }
+    
+    // Vérifier chaque transaction
+    for (const txHash of block.transactions) {
+      try {
+        const tx = await provider.getTransaction(txHash);
+        
+        if (tx && tx.from && tx.from.toLowerCase() === userAddress.toLowerCase()) {
+          console.log('User transaction found:', tx.hash);
+          await notifyUserTransaction(tx);
+        }
+      } catch (error) {
+        console.error('Error getting transaction:', error);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error inspecting block transactions:', error);
+  }
+}
+
+// Notification pour les transactions utilisateur
+async function notifyUserTransaction(tx: ethers.TransactionResponse) {
+  if (!userAddress) return;
+  
+  try {
+    const value = ethers.formatEther(tx.value);
+    const gasPrice = tx.gasPrice ? ethers.formatUnits(tx.gasPrice, 'gwei') : '0';
+    
+    // Créer la notification
+    const notificationOptions = {
+      type: 'basic' as const,
+      iconUrl: './icon.png',
+      title: '🔗 Transaction CHZ détectée',
+      message: `Transaction sortante détectée\n` +
+               `Montant: ${value} CHZ\n` +
+               `Gas: ${gasPrice} Gwei\n` +
+               `Hash: ${tx.hash.substring(0, 10)}...`,
+      contextMessage: `Vers: ${tx.to ? tx.to.substring(0, 10) + '...' : 'Contrat'}`,
+      priority: 2
+    };
+    
+    // Afficher la notification
+    chrome.notifications.create(tx.hash, notificationOptions, (notificationId) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error creating notification:', chrome.runtime.lastError);
+      } else {
+        console.log('Notification created:', notificationId);
+      }
+    });
+    
+    // Envoyer les données vers le popup si ouvert
+    chrome.runtime.sendMessage({
+      type: 'user_transaction',
+      data: {
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        value: value,
+        gasPrice: gasPrice,
+        blockNumber: tx.blockNumber
+      }
+    }).catch(() => {
+      // Le popup n'est pas ouvert, c'est normal
+    });
+    
+  } catch (error) {
+    console.error('Error notifying user transaction:', error);
+  }
+}
+
+// Gestion du polling (pour d'autres données)
 function startPolling() {
   if (pollingTimer) {
     console.log('Polling already started');
     return;
   }
 
-  pollingTimer = setInterval(() => {
-    chrome.storage.local.get(['userAddress'], (result) => {
+  pollingTimer = setInterval(async () => {
+    try {
+      const result = await chrome.storage.local.get(['userAddress']);
       if (result.userAddress) {
-        pollData(result.userAddress);
+        userAddress = result.userAddress;
+        await pollUserData(result.userAddress);
       }
-    });
-  }, POLLING_INTERVAL);
+    } catch (error) {
+      console.error('Error in polling:', error);
+    }
+  }, POLLING_INTERVAL) as unknown as number;
   
   console.log('Polling started');
 }
@@ -149,46 +265,74 @@ function stopPolling() {
   }
 }
 
-// Fonction de polling
-async function pollData(userAddress: string) {
+// Fonction de polling pour données utilisateur
+async function pollUserData(address: string) {
+  if (!provider) return;
+  
   try {
-    // Ici vous pouvez ajouter votre logique de polling
-    // Par exemple, appeler une API pour récupérer des données
-    console.log('Polling data for address:', userAddress);
+    console.log('Polling user data for address:', address);
     
-    // Exemple d'appel API
-    // const response = await fetch(`https://api.example.com/data/${userAddress}`);
-    // const data = await response.json();
-    // handlePollingData(data);
+    // Récupérer le solde
+    const balance = await provider.getBalance(address);
+    const balanceEth = ethers.formatEther(balance);
+    
+    // Récupérer le nombre de transactions
+    const transactionCount = await provider.getTransactionCount(address);
+    
+    console.log(`Balance: ${balanceEth} CHZ, Transactions: ${transactionCount}`);
+    
+    // Envoyer les données vers le popup si ouvert
+    chrome.runtime.sendMessage({
+      type: 'user_data_update',
+      data: {
+        address: address,
+        balance: balanceEth,
+        transactionCount: transactionCount
+      }
+    }).catch(() => {
+      // Le popup n'est pas ouvert, c'est normal
+    });
     
   } catch (error) {
-    console.error('Error polling data:', error);
+    console.error('Error polling user data:', error);
   }
 }
 
-// Gestion des messages WebSocket
-function handleWebSocketMessage(data: any) {
-  // Traiter les messages WebSocket
-  console.log('Handling WebSocket message:', data);
-  
-  // Envoyer les données vers le popup si ouvert
-  chrome.runtime.sendMessage({
-    type: 'websocket_data',
-    data: data
-  }).catch(() => {
-    // Le popup n'est pas ouvert, c'est normal
-  });
-}
+// Écouter les changements dans le stockage
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.userAddress) {
+    const newAddress = changes.userAddress.newValue;
+    
+    if (newAddress !== userAddress) {
+      console.log('User address changed:', newAddress);
+      userAddress = newAddress;
+      
+      // Redémarrer la surveillance si nécessaire
+      if (newAddress && provider) {
+        console.log('Restarting monitoring with new address');
+      } else if (!newAddress) {
+        console.log('User disconnected, stopping monitoring');
+        disconnectFromChilizRPC();
+      }
+    }
+  }
+});
 
-// Gestion des données de polling
-function handlePollingData(data: any) {
-  console.log('Handling polling data:', data);
+// Gestion des clics sur les notifications
+chrome.notifications.onClicked.addListener((notificationId) => {
+  console.log('Notification clicked:', notificationId);
   
-  // Envoyer les données vers le popup si ouvert
-  chrome.runtime.sendMessage({
-    type: 'polling_data',
-    data: data
-  }).catch(() => {
-    // Le popup n'est pas ouvert, c'est normal
-  });
-} 
+  // Ouvrir l'explorateur de blocs avec la transaction
+  const explorerUrl = `https://testnet.chiliscan.com/tx/${notificationId}`;
+  chrome.tabs.create({ url: explorerUrl });
+  
+  // Fermer la notification
+  chrome.notifications.clear(notificationId);
+});
+
+// Nettoyage lors de la fermeture
+chrome.runtime.onSuspend.addListener(() => {
+  console.log('Extension suspending, cleaning up...');
+  disconnectFromChilizRPC();
+  stopPolling();
+});
