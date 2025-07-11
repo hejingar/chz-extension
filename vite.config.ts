@@ -20,8 +20,10 @@ export default defineConfig({
       }
     },
     target: 'es2015',
-    minify: false
+    minify: false,
+    copyPublicDir: false
   },
+  publicDir: false,
   define: {
     'process.env.NODE_ENV': JSON.stringify('production')
   }

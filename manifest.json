@@ -5,7 +5,8 @@
   "description": "Extension Chrome pour CHZ avec connexion Metamask",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   "host_permissions": [
     "https://*/*"

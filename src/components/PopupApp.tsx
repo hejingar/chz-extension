@@ -6,6 +6,21 @@ import './PopupApp.css';
 interface ConnectionStatus {
   websocket: boolean;
   polling: boolean;
+  monitoring: boolean;
+}
+
+interface UserData {
+  balance?: string;
+  transactionCount?: number;
+}
+
+interface UserTransaction {
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  gasPrice: string;
+  blockNumber: number;
 }
 
 const PopupApp: React.FC = () => {
@@ -13,8 +28,11 @@ const PopupApp: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     websocket: false,
-    polling: false
+    polling: false,
+    monitoring: false
   });
+  const [userData, setUserData] = useState<UserData>({});
+  const [recentTransactions, setRecentTransactions] = useState<UserTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,6 +40,8 @@ const PopupApp: React.FC = () => {
     loadUserAddress();
     // Charger le statut de connexion
     loadConnectionStatus();
+    // Écouter les messages du background script
+    setupMessageListener();
   }, []);
 
   const loadUserAddress = async () => {
@@ -44,6 +64,23 @@ const PopupApp: React.FC = () => {
     } catch (error) {
       console.error('Error loading connection status:', error);
     }
+  };
+
+  const setupMessageListener = () => {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      switch (message.type) {
+        case 'user_data_update':
+          setUserData({
+            balance: message.data.balance,
+            transactionCount: message.data.transactionCount
+          });
+          break;
+        case 'user_transaction':
+          setRecentTransactions(prev => [message.data, ...prev.slice(0, 4)]);
+          break;
+      }
+      sendResponse({ received: true });
+    });
   };
 
   const handleConnectMetamask = async () => {
@@ -76,12 +113,14 @@ const PopupApp: React.FC = () => {
     try {
       await StorageService.clearUserAddress();
       setUserAddress(null);
+      setUserData({});
+      setRecentTransactions([]);
       
       // Arrêter les services
       chrome.runtime.sendMessage({ action: 'disconnect_websocket' });
       chrome.runtime.sendMessage({ action: 'stop_polling' });
       
-      setConnectionStatus({ websocket: false, polling: false });
+      setConnectionStatus({ websocket: false, polling: false, monitoring: false });
     } catch (error) {
       console.error('Error disconnecting:', error);
     }
@@ -109,19 +148,27 @@ const PopupApp: React.FC = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const formatBalance = (balance: string) => {
+    return parseFloat(balance).toFixed(4);
+  };
+
+  const openTransaction = (hash: string) => {
+    chrome.tabs.create({ url: `https://testnet.chiliscan.com/tx/${hash}` });
+  };
+
   return (
     <div className="popup-container">
       <header className="popup-header">
         <h1>CHZ Extension</h1>
-        <div className="logo">🔗</div>
+        <div className="logo">⚽</div>
       </header>
 
       <main className="popup-main">
         {!userAddress ? (
           <div className="connection-section">
             <div className="welcome-message">
-              <h2>Bienvenue!</h2>
-              <p>Connectez votre wallet MetaMask pour commencer</p>
+              <h2>Bienvenue sur Chiliz Chain 2.0!</h2>
+              <p>Connectez votre wallet MetaMask pour surveiller vos transactions</p>
             </div>
             
             <button 
@@ -141,21 +188,33 @@ const PopupApp: React.FC = () => {
         ) : (
           <div className="connected-section">
             <div className="user-info">
-              <h2>Connecté</h2>
+              <h2>Connecté sur Chiliz Chain 2.0</h2>
               <div className="address">
                 <span className="label">Adresse:</span>
                 <span className="value">{formatAddress(userAddress)}</span>
               </div>
+              {userData.balance && (
+                <div className="balance">
+                  <span className="label">Solde:</span>
+                  <span className="value">{formatBalance(userData.balance)} CHZ</span>
+                </div>
+              )}
+              {userData.transactionCount !== undefined && (
+                <div className="tx-count">
+                  <span className="label">Transactions:</span>
+                  <span className="value">{userData.transactionCount}</span>
+                </div>
+              )}
             </div>
 
             <div className="services-section">
-              <h3>Services</h3>
+              <h3>Services Chiliz Chain 2.0</h3>
               
               <div className="service-item">
                 <div className="service-info">
-                  <span className="service-name">WebSocket</span>
+                  <span className="service-name">WebSocket RPC</span>
                   <span className={`service-status ${connectionStatus.websocket ? 'active' : 'inactive'}`}>
-                    {connectionStatus.websocket ? 'Actif' : 'Inactif'}
+                    {connectionStatus.websocket ? 'Connecté' : 'Déconnecté'}
                   </span>
                 </div>
                 <button 
@@ -168,7 +227,21 @@ const PopupApp: React.FC = () => {
 
               <div className="service-item">
                 <div className="service-info">
-                  <span className="service-name">Polling</span>
+                  <span className="service-name">Surveillance des blocs</span>
+                  <span className={`service-status ${connectionStatus.monitoring ? 'active' : 'inactive'}`}>
+                    {connectionStatus.monitoring ? 'Actif' : 'Inactif'}
+                  </span>
+                </div>
+                <div className="service-indicator">
+                  {connectionStatus.monitoring && (
+                    <div className="monitoring-indicator">🔍</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="service-item">
+                <div className="service-info">
+                  <span className="service-name">Polling des données</span>
                   <span className={`service-status ${connectionStatus.polling ? 'active' : 'inactive'}`}>
                     {connectionStatus.polling ? 'Actif' : 'Inactif'}
                   </span>
@@ -181,6 +254,26 @@ const PopupApp: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {recentTransactions.length > 0 && (
+              <div className="transactions-section">
+                <h3>Transactions récentes</h3>
+                <div className="transactions-list">
+                  {recentTransactions.map((tx, index) => (
+                    <div key={index} className="transaction-item" onClick={() => openTransaction(tx.hash)}>
+                      <div className="tx-info">
+                        <span className="tx-hash">{tx.hash.substring(0, 10)}...</span>
+                        <span className="tx-value">{formatBalance(tx.value)} CHZ</span>
+                      </div>
+                      <div className="tx-details">
+                        <span className="tx-to">→ {formatAddress(tx.to)}</span>
+                        <span className="tx-block">Bloc #{tx.blockNumber}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="actions-section">
               <button 
