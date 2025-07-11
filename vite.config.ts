@@ -1,9 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'manifest.json',
+          dest: '.' // means dist/manifest.json
+        },
+      ]
+    })
+  ],
   build: {
     outDir: 'dist',
     rollupOptions: {
@@ -20,11 +31,9 @@ export default defineConfig({
       }
     },
     target: 'es2015',
-    minify: false,
-    copyPublicDir: false
+    minify: false
   },
-  publicDir: false,
   define: {
     'process.env.NODE_ENV': JSON.stringify('production')
   }
-}) 
+})
