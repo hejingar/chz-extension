@@ -2,7 +2,7 @@
 import { ethers } from 'ethers';
 
 // Smart contract configuration
-const ROUNDUP_CONTRACT_ADDRESS = '0x1234567890123456789012345678901234567890'; // Replace with your actual contract address
+const ROUNDUP_CONTRACT_ADDRESS = '0x06693a6dcf15f0226535e0ad5dd461a76c59c485'; // CHZ Savings Contract
 const ROUNDUP_CONTRACT_ABI = [
   {
     "inputs": [],
@@ -30,8 +30,6 @@ class RoundUpService {
   }
 
   async init() {
-    console.log('🎯 RoundUp Service initialized for Chiliz Spicy testnet');
-    
     // Initialize providers
     await this.initializeProviders();
     
@@ -39,6 +37,17 @@ class RoundUpService {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       this.handleMessage(request, sender, sendResponse);
       return true; // Keep message channel open for async response
+    });
+
+    // Listen for notification clicks
+    chrome.notifications.onClicked.addListener((notificationId) => {
+      // Open popup when notification is clicked
+      chrome.action.openPopup().catch(error => {
+        console.warn('Could not open popup from notification click:', error);
+      });
+      
+      // Clear the notification
+      chrome.notifications.clear(notificationId);
     });
 
     // Start transaction monitoring
@@ -52,7 +61,6 @@ class RoundUpService {
       
       // Test the connection
       const network = await this.provider.getNetwork();
-      console.log('✅ Connected to network:', network.name, 'Chain ID:', network.chainId);
       
       // Initialize contract
       this.contract = new ethers.Contract(
@@ -61,17 +69,13 @@ class RoundUpService {
         this.provider
       );
       
-      console.log('✅ Provider initialized successfully');
-      
     } catch (error) {
-      console.error('❌ Failed to initialize providers:', error);
+      console.error('Failed to initialize providers:', error);
       throw error;
     }
   }
 
   async handleMessage(request, sender, sendResponse) {
-    console.log('📨 Background received message:', request);
-    
     try {
       switch (request.action) {
         case 'MONITOR_TRANSACTION':
@@ -118,7 +122,7 @@ class RoundUpService {
           sendResponse({ success: false, error: 'Unknown action' });
       }
     } catch (error) {
-      console.error('❌ Background error:', error);
+      console.error('Background error:', error);
       sendResponse({ success: false, error: error.message });
     }
   }
@@ -132,9 +136,8 @@ class RoundUpService {
       try {
         const nonce = await this.provider.getTransactionCount(normalizedAddress, 'latest');
         this.userNonces.set(normalizedAddress, nonce);
-        console.log('👤 Registered user address:', address, 'with nonce:', nonce);
       } catch (error) {
-        console.error('❌ Failed to get initial nonce for', address, ':', error);
+        console.error('Failed to get initial nonce for', address, ':', error);
       }
     }
   }
@@ -144,13 +147,10 @@ class RoundUpService {
       const normalizedAddress = address.toLowerCase();
       this.userAddresses.delete(normalizedAddress);
       this.userNonces.delete(normalizedAddress);
-      console.log('👤 Unregistered user address:', address);
     }
   }
 
   startTransactionMonitoring() {
-    console.log('🔄 Starting optimized transaction monitoring');
-    
     // Clear any existing interval
     if (this.transactionPollingInterval) {
       clearInterval(this.transactionPollingInterval);
@@ -161,12 +161,10 @@ class RoundUpService {
     
     this.transactionPollingInterval = setInterval(async () => {
       if (this.userAddresses.size === 0) {
-        console.log('📊 No addresses to monitor, skipping check');
         return;
       }
       
       if (this.isMonitoring) {
-        console.log('⏳ Still monitoring, skipping this check');
         return;
       }
       
@@ -174,19 +172,15 @@ class RoundUpService {
       try {
         await this.checkForNewTransactions();
       } catch (error) {
-        console.error('❌ Error checking for new transactions:', error);
+        console.error('Error checking for new transactions:', error);
       } finally {
         this.isMonitoring = false;
       }
     }, 10000); // Check every 10 seconds for better responsiveness
-    
-    console.log('✅ Transaction monitoring started (10-second intervals)');
   }
 
   async checkForNewTransactions() {
     if (this.userAddresses.size === 0) return;
-    
-    console.log('🔍 Checking', this.userAddresses.size, 'addresses for new transactions');
 
     for (const userAddress of this.userAddresses) {
       try {
@@ -195,31 +189,40 @@ class RoundUpService {
         const lastSeenNonce = this.userNonces.get(userAddress) || 0;
         
         if (currentNonce > lastSeenNonce) {
-          console.log('🎯 NEW TRANSACTION DETECTED from', userAddress);
-          console.log('📊 Nonce changed from', lastSeenNonce, 'to', currentNonce);
-          
-          // Update tracked nonce
+          // Update our stored nonce
           this.userNonces.set(userAddress, currentNonce);
           
-          // Get recent transactions to find the actual transaction
+          // Check for pending transactions to avoid spamming
+          const pendingRequest = await this.getPendingRoundUpRequest();
+          if (pendingRequest && pendingRequest.userAddress === userAddress) {
+            continue; // Skip if already has pending request
+          }
+          
+          // Process the new transactions
           await this.processNewTransactions(userAddress, lastSeenNonce, currentNonce);
-        } else {
-          console.log('✓ No new transactions for', userAddress, '(nonce:', currentNonce, ')');
         }
-        
       } catch (error) {
-        console.error('❌ Error checking address', userAddress, ':', error);
+        console.error('Error checking transactions for', userAddress, ':', error);
       }
     }
   }
 
   async processNewTransactions(userAddress, fromNonce, toNonce) {
+    // Get settings to see if auto-save is enabled
+    const settings = await this.getRoundUpSettings();
+    
+    if (!settings.enabled) {
+      return;
+    }
+
     try {
       // Get the latest block to find recent transactions
       const latestBlock = await this.provider.getBlock('latest');
       
       // Check the last few blocks for transactions from this address
-      const blocksToCheck = Math.min(5, latestBlock.number); // Check last 5 blocks
+      const blocksToCheck = Math.min(5, latestBlock.number);
+      
+      let shouldTriggerRoundUp = false;
       
       for (let i = 0; i < blocksToCheck; i++) {
         const blockNumber = latestBlock.number - i;
@@ -227,220 +230,198 @@ class RoundUpService {
         
         if (block && block.transactions) {
           for (const tx of block.transactions) {
-            if (tx.from.toLowerCase() === userAddress.toLowerCase() && 
+            if (tx.from && tx.from.toLowerCase() === userAddress.toLowerCase() && 
                 tx.nonce >= fromNonce && tx.nonce < toNonce) {
               
-              console.log('🔍 Found specific transaction:', tx.hash);
-              console.log('🔍 ORIGINAL TX DEBUG: Original transaction value =', ethers.utils.formatEther(tx.value), 'CHZ');
-              await this.promptUserForRoundUpFromTx(userAddress, tx);
-              return; // Process only the first/most recent transaction
+              // IMPORTANT: Ignore transactions TO the smart contract to prevent loops
+              if (tx.to && tx.to.toLowerCase() === ROUNDUP_CONTRACT_ADDRESS.toLowerCase()) {
+                continue;
+              }
+              
+              // This is a regular transaction, trigger round-up
+              shouldTriggerRoundUp = true;
+              break;
             }
           }
         }
+        
+        if (shouldTriggerRoundUp) {
+          break;
+        }
       }
       
-      // If we couldn't find the specific transaction, just trigger based on nonce change
-      console.log('📊 Triggering round-up based on nonce change (transaction not found in recent blocks)');
-      await this.promptUserForRoundUp(userAddress);
+      // Only trigger round-up if we found a valid non-contract transaction
+      if (shouldTriggerRoundUp) {
+        await this.promptUserForRoundUp(userAddress);
+      }
       
     } catch (error) {
-      console.error('❌ Error processing new transactions:', error);
-      // Fallback to generic prompt
-      await this.promptUserForRoundUp(userAddress);
+      console.error('Error processing new transactions:', error);
+      // Fallback: If we can't check transaction details, don't trigger to be safe
     }
   }
 
   async promptUserForRoundUp(userAddress) {
     try {
-      console.log('💰 Prompting user for round-up confirmation:', userAddress);
-
       const settings = await this.getRoundUpSettings();
-      console.log('🔍 AMOUNT DEBUG: Retrieved settings:', settings);
       
-      if (!settings.enabled) {
-        console.log('🚫 Auto-save disabled by user');
-        return;
-      }
-
-      const savingsAmount = settings.fixedAmount;
-      console.log('🔍 AMOUNT DEBUG: savingsAmount =', savingsAmount, 'type:', typeof savingsAmount);
-      
-      if (savingsAmount <= 0) {
-        console.log('💰 No savings amount configured');
-        return;
-      }
-
-      // Check daily limit
+      // Get daily saved amount
       const today = new Date().toDateString();
-      const dailyKey = `dailyTotal_${today}`;
-      const dailyTotal = await this.getFromStorage(dailyKey) || 0;
+      const savedToday = await this.getFromStorage(`dailySaved_${today}`) || 0;
       
-      if (dailyTotal + savingsAmount > settings.maxPerDay) {
-        console.log('🚫 Daily limit reached. Would exceed', settings.maxPerDay, 'CHZ');
+      // Check if daily limit reached
+      if (savedToday >= settings.maxPerDay) {
         return;
       }
-
-      // Store the pending round-up request
-      const pendingRequest = {
+      
+      // Create round-up request
+      const roundUpRequest = {
         userAddress: userAddress,
-        amount: savingsAmount,
+        amount: settings.fixedAmount,
         timestamp: Date.now(),
-        dailyTotal: dailyTotal
+        dailySaved: savedToday,
+        maxPerDay: settings.maxPerDay
       };
       
-      console.log('🔍 AMOUNT DEBUG: Storing pending request:', pendingRequest);
-      await this.setPendingRoundUpRequest(pendingRequest);
-
+      // Store pending request
+      await this.setPendingRoundUpRequest(roundUpRequest);
+      
       // Show notification
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.svg',
-        title: 'CHZ Auto-Save Available',
-        message: `💰 Transaction detected! Click to save ${savingsAmount} CHZ to your account.`
-      });
-
-      // Open extension popup
       try {
-        chrome.action.openPopup();
-      } catch (error) {
-        console.log('⚠️ Could not open popup automatically:', error);
+        await chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.svg',
+          title: 'CHZ Auto-Save Available',
+          message: `💰 Transaction detected! Click to save ${settings.fixedAmount} CHZ to your savings.`
+        });
+      } catch (notificationError) {
+        console.warn('Could not show notification:', notificationError);
       }
-
+      
+      // Open extension popup automatically
+      try {
+        await chrome.action.openPopup();
+      } catch (popupError) {
+        console.warn('Could not open popup automatically:', popupError);
+        // Popup might be blocked, notification will still alert user
+      }
+      
+      // Send notification to popup (in case it's already open)
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'TRANSACTION_DETECTED',
+          userAddress: userAddress,
+          amount: settings.fixedAmount
+        });
+      } catch (messageError) {
+        // Popup might not be open, that's okay
+      }
+      
     } catch (error) {
-      console.error('❌ Error prompting user for round-up:', error);
+      console.error('Error prompting user for round-up:', error);
     }
   }
 
   async promptUserForRoundUpFromTx(userAddress, transaction) {
     try {
-      console.log('💰 Processing specific transaction:', {
-        userAddress: userAddress,
-        txHash: transaction.hash,
-        value: ethers.utils.formatEther(transaction.value),
-        nonce: transaction.nonce
-      });
-
       const settings = await this.getRoundUpSettings();
-      console.log('🔍 AMOUNT DEBUG: Retrieved settings from promptUserForRoundUpFromTx:', settings);
       
-      if (!settings.enabled) {
-        console.log('🚫 Auto-save disabled by user');
-        return;
-      }
-
-      // Prevent duplicate processing
-      const processedKey = `processed_${transaction.hash}`;
-      const alreadyProcessed = await this.getFromStorage(processedKey);
-      
-      if (alreadyProcessed) {
-        console.log('🚫 Transaction already processed:', transaction.hash);
-        return;
-      }
-
-      // Mark as processed
-      await this.setInStorage(processedKey, true);
-
-      // Skip zero-value transactions
-      if (transaction.value.isZero()) {
-        console.log('🚫 Skipping zero-value transaction');
-        return;
-      }
-
-      const savingsAmount = settings.fixedAmount;
-      console.log('🔍 AMOUNT DEBUG: savingsAmount from promptUserForRoundUpFromTx =', savingsAmount, 'type:', typeof savingsAmount);
-
-      if (savingsAmount <= 0) {
-        console.log('💰 No savings amount configured');
-        return;
-      }
-
-      // Check daily limit
+      // Get daily saved amount
       const today = new Date().toDateString();
-      const dailyKey = `dailyTotal_${today}`;
-      const dailyTotal = await this.getFromStorage(dailyKey) || 0;
+      const savedToday = await this.getFromStorage(`dailySaved_${today}`) || 0;
       
-      if (dailyTotal + savingsAmount > settings.maxPerDay) {
-        console.log('🚫 Daily limit reached. Would exceed', settings.maxPerDay, 'CHZ');
+      // Check if daily limit reached
+      if (savedToday >= settings.maxPerDay) {
         return;
       }
-
-      // Store the pending round-up request
-      const pendingRequest = {
+      
+      // Create round-up request
+      const roundUpRequest = {
         userAddress: userAddress,
-        amount: savingsAmount,
+        amount: settings.fixedAmount,
         timestamp: Date.now(),
-        dailyTotal: dailyTotal,
-        originalTxHash: transaction.hash
+        dailySaved: savedToday,
+        maxPerDay: settings.maxPerDay,
+        originalTx: {
+          hash: transaction.hash,
+          to: transaction.to,
+          value: transaction.value,
+          gasPrice: transaction.gasPrice,
+          gasLimit: transaction.gasLimit
+        }
       };
       
-      console.log('🔍 AMOUNT DEBUG: Storing pending request from promptUserForRoundUpFromTx:', pendingRequest);
-      await this.setPendingRoundUpRequest(pendingRequest);
-
-      console.log(`💸 Prompting user for auto-save: ${savingsAmount} CHZ for tx: ${transaction.hash}`);
-
+      // Store pending request
+      await this.setPendingRoundUpRequest(roundUpRequest);
+      
       // Show notification
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.svg',
-        title: 'CHZ Auto-Save Available',
-        message: `💰 Transaction detected! Click to save ${savingsAmount} CHZ to your account.`
-      });
-
-      // Open extension popup
       try {
-        chrome.action.openPopup();
-      } catch (error) {
-        console.log('⚠️ Could not open popup automatically:', error);
+        await chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.svg',
+          title: 'CHZ Auto-Save Available',
+          message: `💰 Transaction detected! Click to save ${settings.fixedAmount} CHZ to your savings.`
+        });
+      } catch (notificationError) {
+        console.warn('Could not show notification:', notificationError);
       }
-
+      
+      // Open extension popup automatically
+      try {
+        await chrome.action.openPopup();
+      } catch (popupError) {
+        console.warn('Could not open popup automatically:', popupError);
+        // Popup might be blocked, notification will still alert user
+      }
+      
+      // Send notification to popup (in case it's already open)
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'TRANSACTION_DETECTED',
+          userAddress: userAddress,
+          amount: settings.fixedAmount,
+          originalTx: transaction
+        });
+      } catch (messageError) {
+        // Popup might not be open, that's okay
+      }
+      
     } catch (error) {
-      console.error('❌ Error processing transaction from monitoring:', error);
+      console.error('Error prompting user for round-up from transaction:', error);
     }
   }
 
   async confirmRoundUp(userAddress, amount) {
     try {
-      console.log('✅ User confirmed round-up:', { userAddress, amount });
-
-      // Update daily total
+      // Update daily saved amount
       const today = new Date().toDateString();
-      const dailyKey = `dailyTotal_${today}`;
-      const dailyTotal = await this.getFromStorage(dailyKey) || 0;
-      await this.setInStorage(dailyKey, dailyTotal + amount);
-
+      const savedToday = await this.getFromStorage(`dailySaved_${today}`) || 0;
+      const newDailySaved = savedToday + amount;
+      
+      await this.setInStorage(`dailySaved_${today}`, newDailySaved);
+      
       // Clear pending request
       await this.clearPendingRoundUpRequest();
-
-      return { success: true };
-
+      
     } catch (error) {
-      console.error('❌ Error confirming round-up:', error);
+      console.error('Error confirming round-up:', error);
       throw error;
     }
   }
 
   async declineRoundUp() {
     try {
-      console.log('❌ User declined round-up');
-      
       // Clear pending request
       await this.clearPendingRoundUpRequest();
-
-      return { success: true };
-
+      
     } catch (error) {
-      console.error('❌ Error declining round-up:', error);
+      console.error('Error declining round-up:', error);
       throw error;
     }
   }
 
   async getPendingRoundUpRequest() {
-    const result = await this.getFromStorage('pendingRoundUpRequest');
-    console.log('🔍 AMOUNT DEBUG: getPendingRoundUpRequest returning:', result);
-    if (result && result.amount) {
-      console.log('🔍 AMOUNT DEBUG: Pending request amount =', result.amount, 'type:', typeof result.amount);
-    }
-    return result;
+    return await this.getFromStorage('pendingRoundUpRequest');
   }
 
   async setPendingRoundUpRequest(request) {
@@ -453,56 +434,67 @@ class RoundUpService {
 
   async monitorTransaction(txHash, userAddress) {
     if (this.monitoringTxs.has(txHash)) {
-      console.log('⏳ Already monitoring transaction:', txHash);
-      return;
+      return; // Already monitoring
     }
-
-    this.monitoringTxs.add(txHash);
-    console.log('🔍 Monitoring transaction on Chiliz Spicy testnet:', txHash);
-
+    
     try {
-      // Wait for transaction confirmation using ethers.js
-      const receipt = await this.provider.waitForTransaction(txHash, 1, 600000); // 10 minute timeout
-      
-      if (receipt && receipt.status === 1) {
-        console.log('✅ Transaction confirmed on Chiliz Spicy:', txHash);
-        this.monitoringTxs.delete(txHash);
-        
-        // Get transaction details
-        const tx = await this.provider.getTransaction(txHash);
-        await this.promptUserForRoundUpFromTx(userAddress, tx);
+      // Check if this transaction is to the smart contract (our own deposit)
+      const tx = await this.provider.getTransaction(txHash);
+      if (tx && tx.to && tx.to.toLowerCase() === ROUNDUP_CONTRACT_ADDRESS.toLowerCase()) {
+        return;
       }
     } catch (error) {
-      console.error('❌ Error monitoring transaction:', error);
+      console.warn('Could not check transaction details for monitoring:', error);
+      // Continue with monitoring if we can't check
+    }
+    
+    this.monitoringTxs.add(txHash);
+    
+    try {
+      // For now, just wait a bit and then prompt for round-up
+      // In production, you might want to wait for confirmation
+      setTimeout(async () => {
+        try {
+          const settings = await this.getRoundUpSettings();
+          if (settings.enabled) {
+            await this.promptUserForRoundUp(userAddress);
+          }
+        } catch (error) {
+          console.error('Error in delayed round-up prompt:', error);
+        } finally {
+          this.monitoringTxs.delete(txHash);
+        }
+      }, 3000); // Wait 3 seconds after transaction
+      
+    } catch (error) {
+      console.error('Error monitoring transaction:', error);
       this.monitoringTxs.delete(txHash);
     }
   }
 
   async getRoundUpSettings() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['roundUpSettings'], (result) => {
-        const defaultSettings = {
-          enabled: false,
-          fixedAmount: 5,
-          maxPerDay: 50
-        };
-        
-        const settings = result.roundUpSettings || defaultSettings;
-        console.log('🔍 AMOUNT DEBUG: getRoundUpSettings returning:', settings);
-        console.log('🔍 AMOUNT DEBUG: Raw storage result:', result);
-        
-        resolve(settings);
-      });
-    });
+    const defaultSettings = {
+      enabled: false,
+      fixedAmount: 5, // Fixed CHZ amount to save per transaction
+      maxPerDay: 50 // Maximum CHZ to save per day
+    };
+    
+    try {
+      const savedSettings = await this.getFromStorage('roundUpSettings');
+      return savedSettings ? { ...defaultSettings, ...savedSettings } : defaultSettings;
+    } catch (error) {
+      console.error('Error getting round-up settings:', error);
+      return defaultSettings;
+    }
   }
 
   async setRoundUpSettings(settings) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ roundUpSettings: settings }, () => {
-        console.log('💾 Round-up settings saved:', settings);
-        resolve();
-      });
-    });
+    try {
+      await this.setInStorage('roundUpSettings', settings);
+    } catch (error) {
+      console.error('Error setting round-up settings:', error);
+      throw error;
+    }
   }
 
   async getFromStorage(key) {
@@ -515,14 +507,10 @@ class RoundUpService {
 
   async setInStorage(key, value) {
     return new Promise((resolve) => {
-      chrome.storage.local.set({ [key]: value }, () => {
-        resolve();
-      });
+      chrome.storage.local.set({ [key]: value }, resolve);
     });
   }
 }
 
 // Initialize the service
-new RoundUpService();
-
-console.log('🚀 CHZ Round-Up Background Service loaded with optimized polling'); 
+new RoundUpService(); 

@@ -289,24 +289,22 @@ const WalletProvider = React.memo(({ children }) => {
         try {
             // First try to use window.ethereum if available
             if (typeof window !== 'undefined' && window.ethereum) {
-                console.log('🔗 Using window.ethereum provider');
                 return window.ethereum;
             }
             
             // Fallback to creating MetaMask extension provider
-            console.log('🔗 Creating MetaMask extension provider');
             const extensionProvider = createMetaMaskProvider();
             
             // Add error handling for the provider
             if (extensionProvider) {
                 extensionProvider.on('error', (error) => {
-                    console.error('🔗 Provider error:', error);
+                    console.error('Provider error:', error);
                 });
             }
             
             return extensionProvider;
         } catch (error) {
-            console.error('❌ Error creating provider:', error);
+            console.error('Error creating provider:', error);
             return null;
         }
     }
@@ -343,7 +341,7 @@ const WalletProvider = React.memo(({ children }) => {
                     userAddress: getNormalizeAddress(accounts)
                 });
             } catch (backgroundError) {
-                console.warn('⚠️ Could not register user address for monitoring:', backgroundError);
+                console.warn('Could not register user address for monitoring:', backgroundError);
             }
             
             // Store connection
@@ -353,10 +351,8 @@ const WalletProvider = React.memo(({ children }) => {
                 connected: true 
             });
             
-            console.log('✅ Wallet connected successfully');
-            
         } catch (error) {
-            console.error('❌ Failed to connect wallet:', error);
+            console.error('Failed to connect wallet:', error);
             throw error;
         }
     };
@@ -371,7 +367,7 @@ const WalletProvider = React.memo(({ children }) => {
                         userAddress: account
                     });
                 } catch (backgroundError) {
-                    console.warn('⚠️ Could not unregister user address:', backgroundError);
+                    console.warn('Could not unregister user address:', backgroundError);
                 }
             }
             
@@ -391,9 +387,8 @@ const WalletProvider = React.memo(({ children }) => {
             // Clear storage
             await storage.set('wallet', { connected: false });
             
-            console.log('✅ Wallet disconnected');
         } catch (error) {
-            console.error('❌ Failed to disconnect wallet:', error);
+            console.error('Failed to disconnect wallet:', error);
         }
     };
 
@@ -404,7 +399,7 @@ const WalletProvider = React.memo(({ children }) => {
             provider.on(EthereumEvents.CONNECT, handleConnect);
             provider.on(EthereumEvents.DISCONNECT, handleDisconnect);
         } catch (error) {
-            console.error('❌ Error setting up event listeners:', error);
+            console.error('Error setting up event listeners:', error);
         }
     };
 
@@ -415,7 +410,7 @@ const WalletProvider = React.memo(({ children }) => {
             provider.removeListener(EthereumEvents.CONNECT, handleConnect);
             provider.removeListener(EthereumEvents.DISCONNECT, handleDisconnect);
         } catch (error) {
-            console.error('❌ Error removing event listeners:', error);
+            console.error('Error removing event listeners:', error);
         }
     };
 
@@ -432,11 +427,10 @@ const WalletProvider = React.memo(({ children }) => {
     };
 
     const handleConnect = (connectInfo) => {
-        console.log('🔗 Connected to chain:', connectInfo.chainId);
+        // Connected to chain
     };
 
     const handleDisconnect = (error) => {
-        console.log('🔌 Disconnected:', error);
         disconnectWallet();
     };
 
@@ -451,7 +445,7 @@ const WalletProvider = React.memo(({ children }) => {
                 setRoundUpSettings(response.data);
             }
         } catch (error) {
-            console.error('❌ Failed to load round-up settings:', error);
+            console.error('Failed to load round-up settings:', error);
         }
     };
 
@@ -462,7 +456,7 @@ const WalletProvider = React.memo(({ children }) => {
                 setTotalSaved(saved);
             }
         } catch (error) {
-            console.error('❌ Failed to load total saved:', error);
+            console.error('Failed to load total saved:', error);
         }
     };
 
@@ -471,9 +465,8 @@ const WalletProvider = React.memo(({ children }) => {
             const newTotal = totalSaved + amount;
             setTotalSaved(newTotal);
             await storage.set('totalSaved', newTotal);
-            console.log('💰 Total saved updated:', newTotal);
         } catch (error) {
-            console.error('❌ Failed to update total saved:', error);
+            console.error('Failed to update total saved:', error);
         }
     };
 
@@ -484,8 +477,6 @@ const WalletProvider = React.memo(({ children }) => {
             });
             
             if (response.success && response.data) {
-                console.log('🔍 Found pending round-up request:', response.data);
-                console.log('🔍 AMOUNT DEBUG: Background returned amount =', response.data.amount, 'type:', typeof response.data.amount);
                 setPendingRoundUp(response.data);
                 setShowRoundUpDialog(true);
             } else {
@@ -493,7 +484,7 @@ const WalletProvider = React.memo(({ children }) => {
                 setShowRoundUpDialog(false);
             }
         } catch (error) {
-            console.error('❌ Failed to check for pending round-up:', error);
+            console.error('Failed to check for pending round-up:', error);
         }
     };
 
@@ -502,8 +493,6 @@ const WalletProvider = React.memo(({ children }) => {
         
         try {
             setIsRoundUpActive(true);
-            console.log('✅ User confirmed round-up:', pendingRoundUp);
-            console.log('🔍 AMOUNT DEBUG: pendingRoundUp.amount =', pendingRoundUp.amount, 'type:', typeof pendingRoundUp.amount);
             
             // Notify background that user confirmed
             await sendToBackground({
@@ -513,7 +502,6 @@ const WalletProvider = React.memo(({ children }) => {
             });
             
             // Execute the actual transaction
-            console.log('🔍 AMOUNT DEBUG: About to call executeRoundUpDeposit with amount:', pendingRoundUp.amount);
             await executeRoundUpDeposit(pendingRoundUp.amount);
             
             // Clear dialog
@@ -521,7 +509,7 @@ const WalletProvider = React.memo(({ children }) => {
             setPendingRoundUp(null);
             
         } catch (error) {
-            console.error('❌ Failed to confirm round-up:', error);
+            console.error('Failed to confirm round-up:', error);
             alert('Failed to process round-up: ' + error.message);
         } finally {
             setIsRoundUpActive(false);
@@ -530,8 +518,6 @@ const WalletProvider = React.memo(({ children }) => {
 
     const declineRoundUp = async () => {
         try {
-            console.log('❌ User declined round-up');
-            
             // Notify background that user declined
             await sendToBackground({
                 action: 'DECLINE_ROUNDUP'
@@ -542,7 +528,7 @@ const WalletProvider = React.memo(({ children }) => {
             setPendingRoundUp(null);
             
         } catch (error) {
-            console.error('❌ Failed to decline round-up:', error);
+            console.error('Failed to decline round-up:', error);
         }
     };
 
@@ -555,10 +541,9 @@ const WalletProvider = React.memo(({ children }) => {
             
             if (response.success) {
                 setRoundUpSettings(newSettings);
-                console.log('✅ Round-up settings updated');
             }
         } catch (error) {
-            console.error('❌ Failed to update round-up settings:', error);
+            console.error('Failed to update round-up settings:', error);
             throw error;
         }
     };
@@ -573,9 +558,8 @@ const WalletProvider = React.memo(({ children }) => {
                 userAddress: account
             });
             
-            console.log('🔍 Transaction monitoring started:', txHash);
         } catch (error) {
-            console.error('❌ Failed to monitor transaction:', error);
+            console.error('Failed to monitor transaction:', error);
         }
     };
 
@@ -585,23 +569,7 @@ const WalletProvider = React.memo(({ children }) => {
         }
 
         try {
-            console.log('🔍 SEND TX DEBUG: sendTransaction called with:', {
-                to: to,
-                value: value,
-                valueType: typeof value,
-                data: data,
-                web3Available: !!web3,
-                account: account
-            });
-
             const valueInWei = web3.utils.toWei(value.toString(), 'ether');
-            console.log('🔍 SEND TX DEBUG: Value conversion:', {
-                originalValue: value,
-                valueString: value.toString(),
-                valueInWei: valueInWei,
-                valueInWeiString: valueInWei.toString(),
-                backToEther: web3.utils.fromWei(valueInWei, 'ether')
-            });
 
             const txParams = {
                 from: account,
@@ -610,16 +578,10 @@ const WalletProvider = React.memo(({ children }) => {
                 data: data
             };
 
-            console.log('🔍 SEND TX DEBUG: Transaction parameters being sent to MetaMask:', txParams);
-            console.log('🔍 SEND TX DEBUG: txParams.value as hex:', '0x' + parseInt(valueInWei).toString(16));
-            console.log('🔍 SEND TX DEBUG: txParams.value back to CHZ:', web3.utils.fromWei(txParams.value, 'ether'));
-
             const txHash = await provider.request({
                 method: 'eth_sendTransaction',
                 params: [txParams]
             });
-
-            console.log('📤 Transaction sent with hash:', txHash);
             
             // Monitor transaction for round-up if enabled
             if (roundUpSettings.enabled) {
@@ -628,7 +590,7 @@ const WalletProvider = React.memo(({ children }) => {
             
             return txHash;
         } catch (error) {
-            console.error('❌ Transaction failed:', error);
+            console.error('Transaction failed:', error);
             throw error;
         }
     };
@@ -639,38 +601,16 @@ const WalletProvider = React.memo(({ children }) => {
         }
 
         try {
-            console.log('💰 ROUNDUP TX DEBUG: executeRoundUpDeposit called with:', {
-                amount: amount,
-                amountType: typeof amount,
-                amountString: amount.toString(),
-                account: account,
-                web3Available: !!web3,
-                providerAvailable: !!provider
-            });
-
             setIsRoundUpActive(true);
             
             // Create contract instance
             const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
             
             const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
-            console.log('💰 ROUNDUP TX DEBUG: Amount conversion:', {
-                originalAmount: amount,
-                amountString: amount.toString(),
-                amountInWei: amountInWei,
-                amountInWeiString: amountInWei.toString(),
-                backToEther: web3.utils.fromWei(amountInWei, 'ether')
-            });
 
             // Encode the deposit function call
             const depositData = contract.methods.deposit().encodeABI();
             
-            console.log('💰 ROUNDUP TX DEBUG: Contract deposit function encoded:', {
-                contractAddress: SAVINGS_CONTRACT_ADDRESS,
-                depositData: depositData,
-                amountInWei: amountInWei
-            });
-
             // Convert amount to hex properly (avoiding precision loss)
             const amountHex = web3.utils.toHex(amountInWei);
             
@@ -681,9 +621,8 @@ const WalletProvider = React.memo(({ children }) => {
                     from: account,
                     value: amountInWei
                 });
-                console.log('💰 ROUNDUP TX DEBUG: Estimated gas:', estimatedGas);
             } catch (gasError) {
-                console.warn('⚠️ Could not estimate gas, using default:', gasError);
+                console.warn('Could not estimate gas, using default:', gasError);
                 estimatedGas = 50000; // Default fallback
             }
 
@@ -696,23 +635,17 @@ const WalletProvider = React.memo(({ children }) => {
                 gas: web3.utils.toHex(Math.ceil(estimatedGas * 1.2)) // 20% buffer on estimated gas
             };
 
-            console.log('💰 ROUNDUP TX DEBUG: Contract transaction parameters being sent to MetaMask:', txParams);
-            console.log('💰 ROUNDUP TX DEBUG: value as hex:', txParams.value);
-            console.log('💰 ROUNDUP TX DEBUG: value back to CHZ:', web3.utils.fromWei(amountInWei, 'ether'));
-
             const txHash = await provider.request({
                 method: 'eth_sendTransaction',
                 params: [txParams]
             });
-
-            console.log('💰 Auto-save deposit sent to contract with hash:', txHash);
             
             // Update total saved
             await updateTotalSaved(amount);
             
             return txHash;
         } catch (error) {
-            console.error('❌ Auto-save deposit to contract failed:', error);
+            console.error('Auto-save deposit to contract failed:', error);
             
             // Provide more specific error messages
             if (error.message.includes('insufficient funds')) {
@@ -759,7 +692,7 @@ const WalletProvider = React.memo(({ children }) => {
                 // Load total saved amount
                 await loadTotalSaved();
             } catch (error) {
-                console.error('❌ Failed to initialize wallet:', error);
+                console.error('Failed to initialize wallet:', error);
             }
         };
 
@@ -778,12 +711,9 @@ const WalletProvider = React.memo(({ children }) => {
         }
     }, [isAuthenticated, account]);
 
-    // Listen for background messages (remove the old auto-trigger handler)
+    // Listen for background messages
     React.useEffect(() => {
         const handleBackgroundMessage = (message, sender, sendResponse) => {
-            // Handle other potential background messages here
-            console.log('📨 Received background message:', message);
-            
             // Check for pending round-up when any message is received
             if (isAuthenticated && account) {
                 checkForPendingRoundUp();

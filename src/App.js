@@ -1,250 +1,392 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
-import { useWallet } from './context/WalletProvider';
-import AutoSaveSettings from './components/RoundUpSettings';
+import WalletProvider, { useWallet } from './context/WalletProvider';
+import NetworkChecker from './components/NetworkChecker';
+import RoundUpSettings from './components/RoundUpSettings';
+import TestnetHelper from './components/TestnetHelper';
+
+const CHZ_SPICY_CHAIN_ID = '0x15b52'; // 88882 in hex
 
 function App() {
-  const { 
-    isAuthenticated, 
-    connectWallet, 
-    disconnectWallet, 
-    account, 
-    chainId, 
+  const {
+    // Wallet state
+    account,
+    chainId,
+    isAuthenticated,
+    
+    // Wallet methods
+    connectWallet,
+    disconnectWallet,
     sendTransaction,
-    pendingRoundUp,
-    showRoundUpDialog,
-    confirmRoundUp,
-    declineRoundUp,
+    
+    // Round-up state
+    roundUpSettings,
     isRoundUpActive,
     totalSaved,
-    roundUpSettings
+    pendingRoundUp,
+    showRoundUpDialog,
+    
+    // Round-up methods
+    updateRoundUpSettings,
+    confirmRoundUp,
+    declineRoundUp
   } = useWallet();
-  
+
+  // State for UI
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isTestingTx, setIsTestingTx] = useState(false);
-  const [lastTxHash, setLastTxHash] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [testAmount, setTestAmount] = useState('0.1');
+  const [testAddress, setTestAddress] = useState('');
+  const [transactionStatus, setTransactionStatus] = useState('');
 
-  const handleTestTransaction = async () => {
-    if (!isAuthenticated) {
-      alert('Please connect your wallet first');
-      return;
+  // Initialize test address with user's address
+  useEffect(() => {
+    if (account && !testAddress) {
+      setTestAddress(account);
     }
+  }, [account, testAddress]);
 
-    setIsTestingTx(true);
+  const handleConnectWallet = async () => {
+    setIsConnecting(true);
+    setTransactionStatus('');
+    
     try {
-      // Send a small test transaction to yourself
-      const txHash = await sendTransaction(account, 0.0001); // Send 0.0001 CHZ to yourself
-      setLastTxHash(txHash);
-      alert(`Test transaction sent! Hash: ${txHash.substring(0, 10)}...`);
+      await connectWallet();
     } catch (error) {
-      console.error('❌ Test transaction failed:', error);
-      alert('Test transaction failed. Please try again.');
+      console.error('Failed to connect wallet:', error);
+      setTransactionStatus('Failed to connect wallet: ' + error.message);
     } finally {
-      setIsTestingTx(false);
+      setIsConnecting(false);
     }
   };
 
-  const renderWalletTab = () => (
-    <div className="tab-content">
-      <div className="wallet-tab-header">
-        <h2>🔗 Wallet Connection</h2>
-        <p>Connect your MetaMask wallet to start using CHZ Auto-Save</p>
-      </div>
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnectWallet();
+      setTransactionStatus('Wallet disconnected');
+    } catch (error) {
+      console.error('Failed to disconnect wallet:', error);
+      setTransactionStatus('Failed to disconnect wallet: ' + error.message);
+    }
+  };
+
+  const handleSendTestTransaction = async () => {
+    if (!testAddress || !testAmount) {
+      setTransactionStatus('Please enter both address and amount');
+      return;
+    }
+
+    try {
+      setTransactionStatus('Sending transaction...');
       
-      <div className="wallet-connection-section">
-        <button 
-          onClick={isAuthenticated ? disconnectWallet : connectWallet} 
-          className={`wallet-connect-btn ${isAuthenticated ? 'connected' : ''}`}
-        >
-          {isAuthenticated ? "🔓 Disconnect Wallet" : "🔐 Connect Wallet"}
-        </button>
-        
-        {isAuthenticated && (
-          <div className="wallet-info">
-            <div className="wallet-info-item">
-              <strong>Account:</strong> 
-              <span className="wallet-address">{account}</span>
-            </div>
-            <div className="wallet-info-item">
-              <strong>Chain ID:</strong> 
-              <span className="chain-id">{chainId}</span>
-            </div>
-            <div className="wallet-status">
-              <span className="status-indicator"></span>
-              Connected to Chiliz Spicy Testnet
-            </div>
-          </div>
-        )}
-      </div>
-
-      {isAuthenticated && (
-        <div className="test-section">
-          <h3>🧪 Test Transaction</h3>
-          <p>Send a test transaction to trigger the auto-save feature</p>
-          <button 
-            onClick={handleTestTransaction}
-            disabled={isTestingTx}
-            className="test-transaction-btn"
-          >
-            {isTestingTx ? '🔄 Sending Test Transaction...' : '🧪 Test Transaction (0.0001 CHZ)'}
-          </button>
-          
-          {lastTxHash && (
-            <div className="last-transaction">
-              <p><strong>Last Transaction:</strong></p>
-              <p className="tx-hash">{lastTxHash}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderSettingsTab = () => (
-    <div className="tab-content">
-      <div className="settings-tab-header">
-        <h2>⚙️ Auto-Save Settings</h2>
-        <p>Configure your automatic CHZ saving preferences</p>
-      </div>
+      const txHash = await sendTransaction(testAddress, testAmount);
+      setTransactionStatus('Transaction sent! Hash: ' + txHash);
       
-      <AutoSaveSettings />
+      // Clear form
+      setTestAmount('0.1');
+      setTestAddress(account);
       
-      <div className="settings-info">
-        <h4>💡 How Auto-Save Works:</h4>
-        <ul>
-          <li>Enable Auto-Save to start monitoring your transactions</li>
-          <li>Set a fixed amount to save with each transaction</li>
-          <li>Set a daily limit to control your total savings</li>
-          <li>When you send a transaction, you'll get a confirmation dialog</li>
-          <li>Choose whether to save or skip for each transaction</li>
-        </ul>
-      </div>
-    </div>
-  );
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      setTransactionStatus('Transaction failed: ' + error.message);
+    }
+  };
 
-  const renderDashboardTab = () => (
-    <div className="tab-content">
-      <div className="dashboard-header">
-        <h2>💰 CHZ Auto-Save Dashboard</h2>
-        <p>Track your automatic savings and manage transactions</p>
-      </div>
-      
-      <div className="savings-summary">
-        <div className="savings-card">
-          <div className="savings-icon">🏦</div>
-          <div className="savings-content">
-            <h3>Total Saved</h3>
-            <div className="savings-amount">{totalSaved.toFixed(2)} CHZ</div>
-          </div>
-        </div>
-        
-        <div className="savings-card">
-          <div className="savings-icon">⚙️</div>
-          <div className="savings-content">
-            <h3>Auto-Save Status</h3>
-            <div className={`savings-status ${roundUpSettings.enabled ? 'active' : 'inactive'}`}>
-              {roundUpSettings.enabled ? 'Active' : 'Inactive'}
-            </div>
-          </div>
-        </div>
-        
-        <div className="savings-card">
-          <div className="savings-icon">💎</div>
-          <div className="savings-content">
-            <h3>Amount per Transaction</h3>
-            <div className="savings-amount">{roundUpSettings.fixedAmount} CHZ</div>
-          </div>
-        </div>
-      </div>
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setTransactionStatus('');
+  };
 
-      {!isAuthenticated && (
-        <div className="connect-prompt">
-          <p>👆 Connect your wallet to start tracking your CHZ savings!</p>
-          <button 
-            onClick={() => setActiveTab('wallet')}
-            className="connect-prompt-btn"
-          >
-            Go to Wallet Tab
-          </button>
-        </div>
-      )}
-
-      {isAuthenticated && !roundUpSettings.enabled && (
-        <div className="setup-prompt">
-          <p>⚙️ Enable Auto-Save in Settings to start saving CHZ automatically!</p>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className="setup-prompt-btn"
-          >
-            Go to Settings
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const isCorrectNetwork = chainId === CHZ_SPICY_CHAIN_ID;
 
   return (
     <div className="App">
       <header className="App-header">
-        <h3>CHZ Extension</h3>
+        <div className="header-content">
+          <div className="logo-section">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0L22.5 6v12L12 24L1.5 18V6L12 0z" fill="#FF6B35"/>
+              <path d="M12 4L19.5 8v8L12 20L4.5 16V8L12 4z" fill="#FFF"/>
+            </svg>
+            <h1>CHZ Auto-Save</h1>
+          </div>
+          
+          <div className="connection-status">
+            {isAuthenticated ? (
+              <div className="connected-info">
+                <span className="status-dot connected"></span>
+                <span className="address">
+                  {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connected'}
+                </span>
+              </div>
+            ) : (
+              <div className="disconnected-info">
+                <span className="status-dot disconnected"></span>
+                <span>Not Connected</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="App-main">
+        {/* Navigation Tabs */}
         <nav className="tab-navigation">
           <button 
-            className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+            className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => handleTabChange('dashboard')}
           >
-            📊 Dashboard
+            Dashboard
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
-            onClick={() => setActiveTab('wallet')}
+            className={`tab-button ${activeTab === 'wallet' ? 'active' : ''}`}
+            onClick={() => handleTabChange('wallet')}
           >
-            🔗 Wallet
+            Wallet
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => handleTabChange('settings')}
           >
-            ⚙️ Settings
+            Settings
           </button>
         </nav>
-      </header>
-      
-      <div className="App-body">
-        {activeTab === 'dashboard' && renderDashboardTab()}
-        {activeTab === 'wallet' && renderWalletTab()}
-        {activeTab === 'settings' && renderSettingsTab()}
-      </div>
+
+        {/* Tab Content */}
+        <div className="tab-content">
+          {/* Dashboard Tab */}
+          {activeTab === 'dashboard' && (
+            <div className="dashboard-tab">
+              <div className="dashboard-header">
+                <h2>Auto-Save Dashboard</h2>
+                <p>Track your CHZ savings automatically</p>
+              </div>
+
+              <div className="savings-summary">
+                <div className="summary-card total-saved">
+                  <h3>Total Saved</h3>
+                  <div className="amount">
+                    <span className="value">{totalSaved}</span>
+                    <span className="currency">CHZ</span>
+                  </div>
+                </div>
+
+                <div className="summary-card auto-save-status">
+                  <h3>Auto-Save Status</h3>
+                  <div className="status-indicator">
+                    <span className={`status-dot ${roundUpSettings.enabled ? 'enabled' : 'disabled'}`}></span>
+                    <span className="status-text">
+                      {roundUpSettings.enabled ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="status-details">
+                    <p>Amount per transaction: {roundUpSettings.fixedAmount} CHZ</p>
+                    <p>Daily limit: {roundUpSettings.maxPerDay} CHZ</p>
+                  </div>
+                </div>
+              </div>
+
+              {isAuthenticated && !isCorrectNetwork && (
+                <div className="network-warning">
+                  <h3>⚠️ Wrong Network</h3>
+                  <p>Please switch to CHZ Spicy Testnet to use auto-save features.</p>
+                </div>
+              )}
+
+              {!isAuthenticated && (
+                <div className="connect-prompt">
+                  <h3>Connect Your Wallet</h3>
+                  <p>Connect MetaMask to start saving CHZ automatically with every transaction.</p>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={handleConnectWallet}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Wallet Tab */}
+          {activeTab === 'wallet' && (
+            <div className="wallet-tab">
+              <div className="wallet-header">
+                <h2>Wallet Connection</h2>
+                <p>Connect and manage your MetaMask wallet</p>
+              </div>
+
+              <div className="wallet-section">
+                {!isAuthenticated ? (
+                  <div className="connect-wallet">
+                    <h3>Connect MetaMask</h3>
+                    <p>Connect your MetaMask wallet to start using CHZ Auto-Save.</p>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={handleConnectWallet}
+                      disabled={isConnecting}
+                    >
+                      {isConnecting ? 'Connecting...' : 'Connect MetaMask'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="wallet-connected">
+                    <h3>Wallet Connected</h3>
+                    <div className="wallet-info">
+                      <div className="info-row">
+                        <span className="label">Account:</span>
+                        <span className="value">{account}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Chain ID:</span>
+                        <span className="value">{chainId}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Network:</span>
+                        <span className={`value ${isCorrectNetwork ? 'correct' : 'incorrect'}`}>
+                          {isCorrectNetwork ? 'CHZ Spicy Testnet ✓' : 'Wrong Network ⚠️'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={handleDisconnectWallet}
+                    >
+                      Disconnect Wallet
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Network Setup */}
+              {isAuthenticated && (
+                <div className="network-section">
+                  <NetworkChecker />
+                </div>
+              )}
+
+              {/* Test Transaction */}
+              {isAuthenticated && isCorrectNetwork && (
+                <div className="test-transaction">
+                  <h3>Test Transaction</h3>
+                  <p>Send a test transaction to try the auto-save feature.</p>
+                  
+                  <div className="form-group">
+                    <label htmlFor="testAddress">To Address:</label>
+                    <input
+                      id="testAddress"
+                      type="text"
+                      value={testAddress}
+                      onChange={(e) => setTestAddress(e.target.value)}
+                      placeholder="Enter recipient address"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="testAmount">Amount (CHZ):</label>
+                    <input
+                      id="testAmount"
+                      type="number"
+                      value={testAmount}
+                      onChange={(e) => setTestAmount(e.target.value)}
+                      placeholder="Enter amount in CHZ"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                  
+                  <button 
+                    className="btn btn-primary"
+                    onClick={handleSendTestTransaction}
+                    disabled={isRoundUpActive}
+                  >
+                    {isRoundUpActive ? 'Processing...' : 'Send Test Transaction'}
+                  </button>
+                  
+                  {transactionStatus && (
+                    <div className="transaction-status">
+                      <p>{transactionStatus}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Testnet Helper */}
+              {isAuthenticated && (
+                <div className="testnet-helper">
+                  <TestnetHelper />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="settings-tab">
+              <div className="settings-header">
+                <h2>Auto-Save Settings</h2>
+                <p>Configure your automatic CHZ savings</p>
+              </div>
+
+              <div className="settings-section">
+                <RoundUpSettings 
+                  settings={roundUpSettings}
+                  onUpdateSettings={updateRoundUpSettings}
+                  isAuthenticated={isAuthenticated}
+                />
+              </div>
+
+              {!isAuthenticated && (
+                <div className="settings-notice">
+                  <p>Connect your wallet to configure auto-save settings.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
 
       {/* Round-up Confirmation Dialog */}
       {showRoundUpDialog && pendingRoundUp && (
-        <div className="round-up-dialog-overlay">
-          <div className="round-up-dialog">
-            <div className="round-up-dialog-header">
-              <h3>💰 Auto-Save Available</h3>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>💰 Auto-Save Confirmation</h3>
             </div>
-            <div className="round-up-dialog-body">
-              <p>🎉 <strong>Transaction detected!</strong></p>
-              <p>Would you like to save <strong>{pendingRoundUp.amount} CHZ</strong> to your account?</p>
-              {pendingRoundUp.originalTxHash && (
-                <p className="tx-details">
-                  <small>Original transaction: {pendingRoundUp.originalTxHash.substring(0, 10)}...</small>
-                </p>
-              )}
+            <div className="modal-body">
+              <p>We detected a transaction from your wallet!</p>
+              <p>Would you like to save <strong>{pendingRoundUp.amount} CHZ</strong> to your savings?</p>
+              <div className="savings-info">
+                <div className="info-row">
+                  <span>Amount to save:</span>
+                  <span>{pendingRoundUp.amount} CHZ</span>
+                </div>
+                <div className="info-row">
+                  <span>Daily limit:</span>
+                  <span>{pendingRoundUp.maxPerDay} CHZ</span>
+                </div>
+                <div className="info-row">
+                  <span>Saved today:</span>
+                  <span>{pendingRoundUp.dailySaved} CHZ</span>
+                </div>
+              </div>
             </div>
-            <div className="round-up-dialog-actions">
+            <div className="modal-footer">
               <button 
+                className="btn btn-secondary"
                 onClick={declineRoundUp}
-                className="round-up-dialog-btn round-up-dialog-btn-secondary"
                 disabled={isRoundUpActive}
               >
-                ❌ No, thanks
+                Not Now
               </button>
               <button 
+                className="btn btn-primary"
                 onClick={confirmRoundUp}
-                className="round-up-dialog-btn round-up-dialog-btn-primary"
                 disabled={isRoundUpActive}
               >
-                {isRoundUpActive ? '🔄 Saving...' : '✅ Yes, save it!'}
+                {isRoundUpActive ? 'Processing...' : 'Save CHZ'}
               </button>
             </div>
           </div>
@@ -254,4 +396,13 @@ function App() {
   );
 }
 
-export default App; 
+// Main App component wrapped with WalletProvider
+function AppWrapper() {
+  return (
+    <WalletProvider>
+      <App />
+    </WalletProvider>
+  );
+}
+
+export default AppWrapper; 
