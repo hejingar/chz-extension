@@ -1,0 +1,33 @@
+{
+  "name": "chz-backend",
+  "version": "1.0.0",
+  "description": "Backend service for Chiliz blockchain interactions",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "test-connection": "node test-connection.js",
+    "monitor": "node monitor.js status",
+    "monitor-continuous": "node monitor.js monitor",
+    "check-connectivity": "node monitor.js connectivity"
+  },
+  "dependencies": {
+    "web3": "^4.0.0",
+    "ws": "^8.14.0",
+    "dotenv": "^16.3.0",
+    "ethers": "^6.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "jest": "^29.7.0"
+  },
+  "keywords": [
+    "chiliz",
+    "blockchain",
+    "websocket",
+    "smart-contract"
+  ],
+  "author": "",
+  "license": "MIT"
+}
