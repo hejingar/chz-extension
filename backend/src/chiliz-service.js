@@ -1,6 +1,7 @@
 const ChilizConnection = require('./chiliz-connection');
 const SmartContractManager = require('./smart-contract-manager');
 const WalletManager = require('./wallet-manager');
+const ChilizReceiverService = require('./chiliz-receiver-service');
 const EventEmitter = require('events');
 
 class ChilizService extends EventEmitter {
@@ -10,6 +11,7 @@ class ChilizService extends EventEmitter {
     this.chilizConnection = null;
     this.contractManager = null;
     this.walletManager = null;
+    this.chilizReceiverService = null; // New ChilizReceiver service
     this.isRunning = false;
     this.startTime = null;
     
@@ -33,6 +35,21 @@ class ChilizService extends EventEmitter {
       this.walletManager = new WalletManager(this.chilizConnection);
       console.log('💼 Wallet manager initialized');
 
+      // Initialize ChilizReceiver smart contract service
+      if (this.config.contractAddress && this.config.contractABI) {
+        this.chilizReceiverService = new ChilizReceiverService(
+          this.chilizConnection,
+          {
+            address: this.config.contractAddress,
+            abi: this.config.contractABI
+          }
+        );
+        await this.chilizReceiverService.initialize();
+        console.log('🏗️ ChilizReceiver smart contract service initialized');
+      } else {
+        console.log('⚠️  No smart contract configured - running in wallet-only mode');
+      }
+
       // Initialize contract manager (if contract config is provided)
       // TEMPORARILY DISABLED - Smart contract functionality disabled to prevent filter errors
       /*
@@ -48,7 +65,9 @@ class ChilizService extends EventEmitter {
         console.log('⚠️  No smart contract configured - running in wallet-only mode');
       }
       */
-      console.log('⚠️  Smart contract functionality disabled - running in wallet-only mode');
+      if (!this.chilizReceiverService) {
+        console.log('⚠️  Smart contract functionality disabled - running in wallet-only mode');
+      }
 
       console.log('✅ Chiliz service initialized successfully');
       return true;
@@ -59,6 +78,40 @@ class ChilizService extends EventEmitter {
   }
 
   setupEventHandlers() {
+    // Handle ChilizReceiver smart contract events
+    this.on('chilizReceiverInitialized', () => {
+      if (this.chilizReceiverService) {
+        this.chilizReceiverService.on('withdrawalRequested', (eventData) => {
+          console.log('📢 Withdrawal Request Event Handler:');
+          console.log(`   User: ${eventData.user}`);
+          console.log(`   Amount: ${eventData.amountFormatted} CHZ`);
+          console.log(`   Transaction: ${eventData.transactionHash}`);
+          console.log(`   Block: ${eventData.blockNumber}`);
+          
+          // Log to our main event system
+          this.emit('withdrawalRequested', eventData);
+        });
+
+        this.chilizReceiverService.on('withdrawToStakeExecuted', (eventData) => {
+          console.log('✅ withdrawToStake Executed Successfully:');
+          console.log(`   Transaction: ${eventData.transactionHash}`);
+          console.log(`   Block: ${eventData.blockNumber}`);
+          console.log(`   Gas Used: ${eventData.gasUsed}`);
+          
+          // Log to our main event system
+          this.emit('withdrawToStakeExecuted', eventData);
+        });
+
+        this.chilizReceiverService.on('withdrawToStakeError', (eventData) => {
+          console.error('❌ withdrawToStake Failed:');
+          console.error(`   Error: ${eventData.error}`);
+          
+          // Log to our main event system
+          this.emit('withdrawToStakeError', eventData);
+        });
+      }
+    });
+
     // Handle contract events and trigger automatic paybacks
     /*
     this.on('contractInitialized', () => {
@@ -221,6 +274,12 @@ class ChilizService extends EventEmitter {
     // Emit initialization events
     this.emit('connectionInitialized');
     this.emit('walletInitialized');
+    
+    // Emit ChilizReceiver initialization if available
+    if (this.chilizReceiverService) {
+      this.emit('chilizReceiverInitialized');
+    }
+    
     // Contract manager initialization disabled
     /*
     if (this.contractManager) {
@@ -360,6 +419,95 @@ class ChilizService extends EventEmitter {
     }
     
     return await this.contractManager.getStakeBalance(address);
+  }
+
+  // ChilizReceiver smart contract methods
+  async manualWithdrawToStake() {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    console.log('🔧 Manual withdrawToStake requested...');
+    return await this.chilizReceiverService.manualWithdrawToStake();
+  }
+
+  async getContractBalance() {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    return await this.chilizReceiverService.getContractBalance();
+  }
+
+  async getUserDepositAmount(userAddress = null) {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    const address = userAddress || this.chilizConnection.wallet.address;
+    return await this.chilizReceiverService.getUserDepositAmount(address);
+  }
+
+  async getUserPendingWithdrawal(userAddress = null) {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    const address = userAddress || this.chilizConnection.wallet.address;
+    return await this.chilizReceiverService.getUserPendingWithdrawal(address);
+  }
+
+  async getUserTimeToClaim(userAddress = null) {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    const address = userAddress || this.chilizConnection.wallet.address;
+    return await this.chilizReceiverService.getUserTimeToClaim(address);
+  }
+
+  async logContractState() {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    return await this.chilizReceiverService.logContractState();
+  }
+
+  getPendingWithdrawals() {
+    if (!this.chilizReceiverService) {
+      return [];
+    }
+    
+    return this.chilizReceiverService.getPendingWithdrawals();
+  }
+
+  // Additional ChilizReceiver contract interaction methods
+  async depositToContract(amountInCHZ) {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    console.log(`💰 Depositing ${amountInCHZ} CHZ to ChilizReceiver contract...`);
+    return await this.chilizReceiverService.deposit(amountInCHZ);
+  }
+
+  async requestWithdrawalFromContract(amountInCHZ) {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    console.log(`📤 Requesting withdrawal of ${amountInCHZ} CHZ from contract...`);
+    return await this.chilizReceiverService.requestWithdrawal(amountInCHZ);
+  }
+
+  async claimWithdrawalFromContract() {
+    if (!this.chilizReceiverService) {
+      throw new Error('ChilizReceiver service not initialized');
+    }
+    
+    console.log(`🎯 Claiming withdrawal from contract...`);
+    return await this.chilizReceiverService.claimWithdrawal();
   }
 }
 
