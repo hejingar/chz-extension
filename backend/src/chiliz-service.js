@@ -92,22 +92,33 @@ class ChilizService extends EventEmitter {
           this.emit('withdrawalRequested', eventData);
         });
 
-        this.chilizReceiverService.on('withdrawToStakeExecuted', (eventData) => {
-          console.log('✅ withdrawToStake Executed Successfully:');
+        this.chilizReceiverService.on('depositBackExecuted', (eventData) => {
+          console.log('✅ DepositBack Executed Successfully:');
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log(`   Gas Used: ${eventData.gasUsed}`);
+          console.log(`   Amount Deposited: ${eventData.amountDeposited} CHZ`);
           
           // Log to our main event system
-          this.emit('withdrawToStakeExecuted', eventData);
+          this.emit('depositBackExecuted', eventData);
         });
 
-        this.chilizReceiverService.on('withdrawToStakeError', (eventData) => {
-          console.error('❌ withdrawToStake Failed:');
+        this.chilizReceiverService.on('depositBackError', (eventData) => {
+          console.error('❌ DepositBack Failed:');
           console.error(`   Error: ${eventData.error}`);
           
           // Log to our main event system
-          this.emit('withdrawToStakeError', eventData);
+          this.emit('depositBackError', eventData);
+        });
+
+        this.chilizReceiverService.on('depositBackFailed', (eventData) => {
+          console.warn('⚠️ DepositBack Failed (Insufficient Funds):');
+          console.warn(`   Reason: ${eventData.reason}`);
+          console.warn(`   Required: ${eventData.required || eventData.totalRequired} CHZ`);
+          console.warn(`   Available: ${eventData.available} CHZ`);
+          
+          // Log to our main event system
+          this.emit('depositBackFailed', eventData);
         });
       }
     });

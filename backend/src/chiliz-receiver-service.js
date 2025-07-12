@@ -40,7 +40,7 @@ class ChilizReceiverService extends EventEmitter {
       console.log(`🔑 Is Wallet Owner: ${isOwner ? '✅ YES' : '❌ NO'}`);
 
       if (!isOwner) {
-        console.warn('⚠️ WARNING: Wallet is not the contract owner. withdrawToStake() will fail.');
+        console.warn('⚠️ WARNING: Wallet is not the contract owner. depositBack() will fail.');
       }
 
       // Set up event listeners
@@ -101,9 +101,9 @@ class ChilizReceiverService extends EventEmitter {
         // Emit our own event for external handlers
         this.emit('withdrawalRequested', withdrawalData);
 
-        // Auto-execute withdrawToStake if enabled
-        if (this.shouldAutoWithdraw()) {
-          await this.executeWithdrawToStake(withdrawalData);
+        // Auto-execute depositBack if enabled
+        if (this.shouldAutoDepositBack()) {
+          await this.executeDepositBack(withdrawalData);
         }
       });
 
@@ -117,49 +117,94 @@ class ChilizReceiverService extends EventEmitter {
     }
   }
 
-  shouldAutoWithdraw() {
-    // Configuration for automatic withdrawal
+  shouldAutoDepositBack() {
+    // Configuration for automatic depositBack
     // Can be made configurable via environment variables
-    return process.env.AUTO_WITHDRAW_TO_STAKE === 'true' || true; // Default to true
+    return process.env.AUTO_DEPOSIT_BACK === 'true' || true; // Default to true
   }
 
-  async executeWithdrawToStake(withdrawalData) {
+  async executeDepositBack(withdrawalData) {
     try {
-      console.log('🔄 Executing automatic withdrawToStake...');
+      console.log('🔄 Executing automatic depositBack...');
+      console.log(`💰 Amount to deposit back: ${withdrawalData.amountFormatted} CHZ`);
 
-      // Check contract balance first
-      const contractBalance = await this.getContractBalance();
-      console.log(`💰 Contract Balance: ${contractBalance} CHZ`);
+      // Check owner wallet balance
+      const ownerBalance = await this.connection.httpProvider.getBalance(this.connection.wallet.address);
+      const ownerBalanceFormatted = ethers.formatEther(ownerBalance);
+      console.log(`� Owner wallet balance: ${ownerBalanceFormatted} CHZ`);
 
-      if (parseFloat(contractBalance) === 0) {
-        console.log('⚠️ Contract balance is 0, skipping withdrawToStake');
+      const requiredAmount = BigInt(withdrawalData.amount);
+      
+      // Check if we have enough funds
+      if (ownerBalance < requiredAmount) {
+        console.log(`❌ Insufficient owner balance for depositBack`);
+        console.log(`   Required: ${withdrawalData.amountFormatted} CHZ`);
+        console.log(`   Available: ${ownerBalanceFormatted} CHZ`);
+        
+        this.emit('depositBackFailed', {
+          ...withdrawalData,
+          reason: 'Insufficient owner balance',
+          required: withdrawalData.amountFormatted,
+          available: ownerBalanceFormatted
+        });
+        
         return {
           success: false,
-          reason: 'No tokens to withdraw',
-          contractBalance: contractBalance
+          reason: 'Insufficient owner balance',
+          required: withdrawalData.amountFormatted,
+          available: ownerBalanceFormatted
         };
       }
 
-      // Estimate gas for the transaction
-      const gasEstimate = await this.contract.withdrawToStake.estimateGas();
-      console.log(`⛽ Estimated Gas: ${gasEstimate.toString()}`);
+      // Estimate gas for depositBack transaction
+      const gasEstimate = await this.contract.depositBack.estimateGas({ value: requiredAmount });
+      const feeData = await this.connection.httpProvider.getFeeData();
+      const gasCost = gasEstimate * feeData.gasPrice;
+      
+      console.log(`⛽ Estimated gas cost: ${ethers.formatEther(gasCost)} CHZ`);
+      
+      // Check if we have enough funds including gas
+      const totalRequired = requiredAmount + gasCost;
+      if (ownerBalance < totalRequired) {
+        console.log(`❌ Insufficient balance including gas costs`);
+        console.log(`   Total required: ${ethers.formatEther(totalRequired)} CHZ`);
+        console.log(`   Available: ${ownerBalanceFormatted} CHZ`);
+        
+        this.emit('depositBackFailed', {
+          ...withdrawalData,
+          reason: 'Insufficient balance including gas',
+          totalRequired: ethers.formatEther(totalRequired),
+          available: ownerBalanceFormatted
+        });
+        
+        return {
+          success: false,
+          reason: 'Insufficient balance including gas',
+          totalRequired: ethers.formatEther(totalRequired),
+          available: ownerBalanceFormatted
+        };
+      }
 
-      // Execute withdrawToStake
-      const tx = await this.contract.withdrawToStake({
-        gasLimit: gasEstimate + BigInt(10000) // Add some buffer
+      // Execute depositBack transaction
+      console.log(`📤 Calling depositBack with ${withdrawalData.amountFormatted} CHZ...`);
+      
+      const tx = await this.contract.depositBack({
+        value: requiredAmount,
+        gasLimit: gasEstimate + BigInt(50000) // Add buffer
       });
 
-      console.log(`📤 withdrawToStake transaction sent: ${tx.hash}`);
+      console.log(`📤 DepositBack transaction sent: ${tx.hash}`);
       console.log('⏳ Waiting for confirmation...');
 
       const receipt = await tx.wait();
-      console.log(`✅ withdrawToStake confirmed in block: ${receipt.blockNumber}`);
+      console.log(`✅ DepositBack confirmed in block: ${receipt.blockNumber}`);
 
       // Emit success event
-      this.emit('withdrawToStakeExecuted', {
+      this.emit('depositBackExecuted', {
         transactionHash: tx.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: receipt.gasUsed.toString(),
+        amountDeposited: withdrawalData.amountFormatted,
         triggeredBy: withdrawalData,
         timestamp: Date.now()
       });
@@ -167,35 +212,26 @@ class ChilizReceiverService extends EventEmitter {
       // Log new balances
       await this.logContractState();
 
+      console.log(`✅ Successfully processed withdrawal request for ${withdrawalData.user}`);
+      console.log(`💰 Amount deposited back: ${withdrawalData.amountFormatted} CHZ`);
+
       return {
         success: true,
         transactionHash: tx.hash,
-        receipt: receipt
+        receipt: receipt,
+        amountDeposited: withdrawalData.amountFormatted
       };
 
     } catch (error) {
-      console.error('❌ Error executing withdrawToStake:', error);
+      console.error('❌ Error executing depositBack:', error);
       
       // Emit error event
-      this.emit('withdrawToStakeError', {
+      this.emit('depositBackError', {
         error: error.message,
         triggeredBy: withdrawalData,
         timestamp: Date.now()
       });
 
-      throw error;
-    }
-  }
-
-  async manualWithdrawToStake() {
-    try {
-      console.log('🔧 Manual withdrawToStake requested...');
-      return await this.executeWithdrawToStake({
-        user: 'manual',
-        reason: 'Manual execution'
-      });
-    } catch (error) {
-      console.error('❌ Manual withdrawToStake failed:', error);
       throw error;
     }
   }
