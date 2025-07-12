@@ -130,7 +130,7 @@ const RoundUpSettings = () => {
                         </div>
 
                         <div className="example-calculation">
-                            <h4>💡 Example:</h4>
+                            <h4>💡</h4>
                             <p>
                                 If you send <strong>7.3 CHZ</strong> and round up to <strong>{localSettings.roundUpTo} CHZ</strong>, 
                                 you'll save <strong>
@@ -150,7 +150,7 @@ const RoundUpSettings = () => {
                         disabled={isSaving}
                         className={`save-button ${isSaving ? 'saving' : ''}`}
                     >
-                        {isSaving ? '💾 Saving...' : '💾 Save Settings'}
+                        {isSaving ? 'Saving...' : 'Save Settings'}
                     </button>
                     
                     {showSuccess && (

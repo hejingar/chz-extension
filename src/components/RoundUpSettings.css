@@ -29,8 +29,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #001e1d 0%, #004643 100%);
+  color: #abd1c6;
   padding: 15px;
   border-radius: 6px;
   margin-bottom: 20px;
@@ -52,7 +52,9 @@
   font-weight: bold;
   color: #fffffe;
   transition: color 0.3s ease;
-  text-align: left;
+  text-align: center;
+
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .savings-status {
@@ -65,7 +67,7 @@
 }
 
 .status-ready {
-  color: #4caf50;
+  color: #001e1d;
 }
 
 @keyframes pulse {
@@ -75,7 +77,7 @@
 }
 
 .settings-form {
-  background: #f9f9f9;
+  /* background: #f9f9f9; */
   padding: 20px;
   border-radius: 6px;
 }
@@ -100,7 +102,7 @@
 .checkbox-custom {
   width: 20px;
   height: 20px;
-  border: 2px solid #ddd;
+  border: 2px solid #001e1d;
   border-radius: 4px;
   margin-right: 10px;
   position: relative;
@@ -108,8 +110,11 @@
 }
 
 .setting-label input[type="checkbox"]:checked + .checkbox-custom {
-  background: #667eea;
-  border-color: #667eea;
+  background: #001e1d;
+  border-color: #001e1d;
+  &:hover {
+    background: darken(#001e1d, 5%);
+  }
 }
 
 .setting-label input[type="checkbox"]:checked + .checkbox-custom::after {
@@ -118,7 +123,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: white;
+  color: #abd1c6;
   font-size: 12px;
   font-weight: bold;
 }
@@ -126,16 +131,16 @@
 .setting-select {
   width: 100%;
   padding: 10px;
-  border: 2px solid #ddd;
+  border: 2px solid #004643;
   border-radius: 4px;
   font-size: 14px;
-  background: white;
+  background: #f9bc60;
   transition: border-color 0.3s ease;
 }
 
 .setting-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #001e1d;
 }
 
 .setting-description {
@@ -149,19 +154,19 @@
   background: #e8f5e8;
   padding: 15px;
   border-radius: 6px;
-  border-left: 4px solid #4caf50;
+  border-left: 4px solid #004643;
   margin-top: 15px;
 }
 
 .example-calculation h4 {
   margin: 0 0 10px 0;
-  color: #2e7d32;
+  color: #004643;
   font-size: 1em;
 }
 
 .example-calculation p {
   margin: 0;
-  color: #2e7d32;
+  color: #004643;
   font-size: 0.9em;
   line-height: 1.5;
 }
@@ -176,8 +181,7 @@
 }
 
 .save-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: #abd1c6;
   border: none;
   padding: 12px 24px;
   border-radius: 6px;
@@ -186,6 +190,11 @@
   cursor: pointer;
   transition: all 0.3s ease;
   min-width: 140px;
+  background: #001e1d;
+  border-color: #001e1d;
+  &:hover {
+    background: darken(#001e1d, 5%);
+  }
 }
 
 .save-button:hover:not(:disabled) {
@@ -209,7 +218,7 @@
 }
 
 .success-message {
-  color: #4caf50;
+  color: #001e1d;
   font-size: 14px;
   font-weight: 500;
   animation: fadeInOut 2s ease-in-out;

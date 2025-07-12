@@ -51,7 +51,7 @@ function App() {
               disabled={isTestingTx}
               className="test-transaction-btn"
             >
-              {isTestingTx ? '🔄 Sending Test Transaction...' : '🧪 Test Transaction (0.1 CHZ)'}
+              {isTestingTx ? ' Sending Test Transaction...' : ' Test Transaction (0.1 CHZ)'}
             </button>
             
             {lastTxHash && (
