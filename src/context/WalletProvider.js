@@ -5,6 +5,258 @@ import { getNormalizeAddress } from '../utils';
 import { EthereumEvents } from '../utils/events';
 import storage from '../utils/storage';
 
+// Smart contract configuration
+const SAVINGS_CONTRACT_ADDRESS = '0x06693a6dcf15f0226535e0ad5dd461a76c59c485';
+const SAVINGS_CONTRACT_ABI = [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "DepositReceived",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "WithdrawalRequested",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "amountDeposit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "claimWithdrawal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "contractBalance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adr",
+          "type": "address"
+        }
+      ],
+      "name": "getAmountDeposit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAvailableBalance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adr",
+          "type": "address"
+        }
+      ],
+      "name": "getPendingWithdrawAmount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adr",
+          "type": "address"
+        }
+      ],
+      "name": "getTimeToClaim",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingWithdrawals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "requestWithdrawal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "timeAtWithdraw",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalPendingWithdrawals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "withdrawToStake",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+];
+
 export const WalletContext = React.createContext();
 export const useWallet = () => React.useContext(WalletContext);
 
@@ -398,9 +650,8 @@ const WalletProvider = React.memo(({ children }) => {
 
             setIsRoundUpActive(true);
             
-            // For testing: send to user's own wallet
-            // In production: replace with your savings contract address
-            const savingsAddress = account; // Send to self for testing
+            // Create contract instance
+            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
             
             const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
             console.log('💰 ROUNDUP TX DEBUG: Amount conversion:', {
@@ -411,33 +662,68 @@ const WalletProvider = React.memo(({ children }) => {
                 backToEther: web3.utils.fromWei(amountInWei, 'ether')
             });
 
-            // Try alternative transaction parameter formatting
+            // Encode the deposit function call
+            const depositData = contract.methods.deposit().encodeABI();
+            
+            console.log('💰 ROUNDUP TX DEBUG: Contract deposit function encoded:', {
+                contractAddress: SAVINGS_CONTRACT_ADDRESS,
+                depositData: depositData,
+                amountInWei: amountInWei
+            });
+
+            // Convert amount to hex properly (avoiding precision loss)
+            const amountHex = web3.utils.toHex(amountInWei);
+            
+            // Estimate gas for the transaction
+            let estimatedGas;
+            try {
+                estimatedGas = await contract.methods.deposit().estimateGas({
+                    from: account,
+                    value: amountInWei
+                });
+                console.log('💰 ROUNDUP TX DEBUG: Estimated gas:', estimatedGas);
+            } catch (gasError) {
+                console.warn('⚠️ Could not estimate gas, using default:', gasError);
+                estimatedGas = 50000; // Default fallback
+            }
+
+            // Create transaction parameters for contract call
             const txParams = {
                 from: account,
-                to: savingsAddress,
-                value: `0x${parseInt(amountInWei).toString(16)}`, // Convert to hex explicitly
-                gas: '0x5208', // 21000 gas for simple transfer
-                data: '0x'
+                to: SAVINGS_CONTRACT_ADDRESS,
+                value: amountHex,
+                data: depositData,
+                gas: web3.utils.toHex(Math.ceil(estimatedGas * 1.2)) // 20% buffer on estimated gas
             };
 
-            console.log('💰 ROUNDUP TX DEBUG: Alternative transaction parameters being sent to MetaMask:', txParams);
-            console.log('💰 ROUNDUP TX DEBUG: value as decimal:', parseInt(txParams.value, 16));
-            console.log('💰 ROUNDUP TX DEBUG: value back to CHZ:', web3.utils.fromWei(parseInt(txParams.value, 16).toString(), 'ether'));
+            console.log('💰 ROUNDUP TX DEBUG: Contract transaction parameters being sent to MetaMask:', txParams);
+            console.log('💰 ROUNDUP TX DEBUG: value as hex:', txParams.value);
+            console.log('💰 ROUNDUP TX DEBUG: value back to CHZ:', web3.utils.fromWei(amountInWei, 'ether'));
 
             const txHash = await provider.request({
                 method: 'eth_sendTransaction',
                 params: [txParams]
             });
 
-            console.log('💰 Auto-save deposit sent with hash:', txHash);
+            console.log('💰 Auto-save deposit sent to contract with hash:', txHash);
             
             // Update total saved
             await updateTotalSaved(amount);
             
             return txHash;
         } catch (error) {
-            console.error('❌ Auto-save deposit failed:', error);
-            throw error;
+            console.error('❌ Auto-save deposit to contract failed:', error);
+            
+            // Provide more specific error messages
+            if (error.message.includes('insufficient funds')) {
+                throw new Error('Insufficient CHZ balance for deposit');
+            } else if (error.message.includes('gas')) {
+                throw new Error('Transaction failed due to gas issues. Please try again.');
+            } else if (error.message.includes('user rejected')) {
+                throw new Error('Transaction was rejected by user');
+            } else {
+                throw new Error(`Deposit failed: ${error.message}`);
+            }
         } finally {
             setIsRoundUpActive(false);
         }
