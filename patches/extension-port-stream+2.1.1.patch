@@ -1,0 +1,14 @@
+diff --git a/node_modules/extension-port-stream/dist/index.js b/node_modules/extension-port-stream/dist/index.js
+index eb5448a..abc1234 100644
+--- a/node_modules/extension-port-stream/dist/index.js
++++ b/node_modules/extension-port-stream/dist/index.js
+@@ -78,4 +78,7 @@ class PortDuplexStream extends stream_1.Duplex {
+     }
+ }
+ exports.default = PortDuplexStream;
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
++exports.PortStream = PortDuplexStream;
++module.exports = PortDuplexStream;
++module.exports.PortStream = PortDuplexStream;
++//# sourceMappingURL=index.js.map

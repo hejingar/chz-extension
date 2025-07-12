@@ -12,6 +12,15 @@ export default defineConfig({
           src: 'manifest.json',
           dest: '.' // means dist/manifest.json
         },
+        {
+          src: 'popup.html',
+          dest: '.' // means dist/popup.html
+        },
+        {
+          src: 'icon.svg',
+          dest: '.',
+          rename: 'icon.png'
+        }
       ]
     })
   ],
@@ -19,21 +28,30 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, 'popup.html'),
+        popup: resolve(__dirname, 'src/popup.tsx'),
         background: resolve(__dirname, 'src/background.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === 'background' ? 'background.js' : '[name].js'
+          const name = chunkInfo.name;
+          if (name === 'background') return 'background.js';
+          if (name === 'popup') return 'popup.js';
+          return '[name].js';
         },
         chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]'
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith('.css')) {
+            return 'popup.css';
+          }
+          return '[name].[ext]';
+        }
       }
     },
     target: 'es2015',
     minify: false
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify('production')
+    'process.env.NODE_ENV': JSON.stringify('production'),
+    global: 'globalThis',
   }
 })

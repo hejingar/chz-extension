@@ -1,0 +1,22 @@
+{
+    "name": "CHZ Extension",
+    "description": "A Chrome extension for Chiliz blockchain interactions",
+    "version": "1.0",
+    "manifest_version": 3,
+    "action": {
+      "default_popup": "popup.html",
+      "default_title": "Open CHZ Extension"
+    },
+    "icons": {
+      "16": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
+    },
+    "permissions": [
+      "activeTab",
+      "tabs", 
+      "webNavigation",
+      "storage"
+    ],
+    "optional_permissions": []
+  } 
