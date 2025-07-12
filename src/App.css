@@ -1,13 +1,16 @@
+
 .App {
+  background-color: #004643;
+  color: #abd1c6;
   text-align: center;
   min-width: 350px;
   min-height: 400px;
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: #001e1d;
   padding: 20px;
-  color: white;
+  color: #abd1c6;
 }
 
 .App-header h3 {
@@ -16,7 +19,7 @@
 }
 
 #wallet-connect {
-  background-color: #61dafb;
+  background-color: #f9bc60;
   border: none;
   padding: 10px 20px;
   font-size: 14px;
@@ -27,26 +30,25 @@
 }
 
 #wallet-connect:hover {
-  background-color: #4fa8c5;
+  background-color: #e16162;
 }
 
 .App-body {
   padding: 20px;
 }
 
-.wallet-info {
-  background-color: #f5f5f5;
-  padding: 15px;
-  border-radius: 5px;
-  margin-bottom: 20px;
-  text-align: left;
+#wallet-info {
+  padding: 10px;
+  /* border-radius: 5px;
+  margin-bottom: 20px; */
+  text-align: center;
 }
 
-.wallet-info p {
+/* .wallet-info p {
   margin: 5px 0;
   font-size: 12px;
   word-break: break-all;
-}
+} */
 
 .app-actions {
   display: flex;
@@ -57,7 +59,7 @@
 
 .test-transaction-btn {
   background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  color: white;
+  color: #004643;
   border: none;
   padding: 12px 20px;
   border-radius: 6px;
@@ -144,9 +146,6 @@
     padding: 15px;
   }
   
-  .wallet-info {
-    padding: 10px;
-  }
   
   .test-transaction-btn {
     padding: 10px 15px;

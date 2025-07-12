@@ -59,6 +59,10 @@ const RoundUpSettings = () => {
     }
 
     return (
+        <div id="roundup-settings">
+            <div id="stat-value">
+                <p><strong>${totalSaved.toFixed(2)} CHZ</strong></p>
+            </div>
         <div className="roundup-settings">
             <div className="settings-header">
                 <h3>💰 Round-Up Savings</h3>
@@ -66,21 +70,6 @@ const RoundUpSettings = () => {
                     Automatically save CHZ by rounding up your transactions
                 </p>
             </div>
-
-            <div className="savings-summary">
-                <div className="savings-stat">
-                    <span className="stat-label">Total Saved</span>
-                    <span className="stat-value">{totalSaved.toFixed(2)} CHZ</span>
-                </div>
-                <div className="savings-status">
-                    {isRoundUpActive ? (
-                        <span className="status-active">🔄 Processing round-up...</span>
-                    ) : (
-                        <span className="status-ready">✅ Ready</span>
-                    )}
-                </div>
-            </div>
-
             <div className="settings-form">
                 <div className="setting-group">
                     <label className="setting-label">
@@ -169,6 +158,7 @@ const RoundUpSettings = () => {
                     )}
                 </div>
             </div>
+        </div>
         </div>
     );
 };

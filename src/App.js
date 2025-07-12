@@ -31,19 +31,16 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h3>CHZ Extension</h3>
+        <h3>Stake4Good</h3>
+         {isAuthenticated && (
+            <p id="wallet-info"><strong>{account}</strong> </p>
+        )}
         <button onClick={isAuthenticated ? disconnectWallet : connectWallet} id="wallet-connect">
           {isAuthenticated ? "Disconnect Wallet" : "Connect Wallet"}
         </button>
       </header>
       
       <div className="App-body">
-        {isAuthenticated && (
-          <div className="wallet-info">
-            <p><strong>Account:</strong> {account}</p>
-            <p><strong>Chain ID:</strong> {chainId}</p>
-          </div>
-        )}
         
         <RoundUpSettings />
         

@@ -1,5 +1,5 @@
 .roundup-settings {
-  background: white;
+  background: #abd1c6;
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
@@ -41,15 +41,18 @@
   flex-direction: column;
 }
 
-.stat-label {
+#stat-label {
   font-size: 0.8em;
   opacity: 0.9;
   margin-bottom: 2px;
 }
 
-.stat-value {
-  font-size: 1.2em;
+#stat-value {
+  font-size: 1.8em;
   font-weight: bold;
+  color: #fffffe;
+  transition: color 0.3s ease;
+  text-align: left;
 }
 
 .savings-status {
