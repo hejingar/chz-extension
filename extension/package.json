@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build --mode chrome && vite build --mode firefox",
+	"build:chrome": "tsc && vite build --mode chrome",
+	"build:firefox": "tsc && vite build --mode firefox",
     "preview": "vite preview",
     "build-extension": "./scripts/build-extension.sh",
     "clean": "rm -rf dist node_modules"
