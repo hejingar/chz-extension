@@ -50,8 +50,7 @@ class ServiceMonitor {
     console.log('================================');
     console.log('💡 To check if the service is working:');
     console.log('   1. Check the console output of the running service');
-    console.log('   2. Look for "New block" messages (indicates WebSocket connection)');
-    console.log('   3. Look for "Service Status" messages every 5 minutes');
+    console.log('   2. Look for "Service Status" messages every 5 minutes');
   }
 
   async testBasicConnectivity() {

@@ -34,6 +34,8 @@ class ChilizService extends EventEmitter {
       console.log('💼 Wallet manager initialized');
 
       // Initialize contract manager (if contract config is provided)
+      // TEMPORARILY DISABLED - Smart contract functionality disabled to prevent filter errors
+      /*
       if (this.config.contractAddress && this.config.contractABI) {
         this.contractManager = new SmartContractManager(
           this.chilizConnection,
@@ -45,6 +47,8 @@ class ChilizService extends EventEmitter {
       } else {
         console.log('⚠️  No smart contract configured - running in wallet-only mode');
       }
+      */
+      console.log('⚠️  Smart contract functionality disabled - running in wallet-only mode');
 
       console.log('✅ Chiliz service initialized successfully');
       return true;
@@ -56,6 +60,7 @@ class ChilizService extends EventEmitter {
 
   setupEventHandlers() {
     // Handle contract events and trigger automatic paybacks
+    /*
     this.on('contractInitialized', () => {
       if (this.contractManager) {
         this.contractManager.on('contractEvent', (eventData) => {
@@ -83,6 +88,7 @@ class ChilizService extends EventEmitter {
         });
       }
     });
+    */
 
     // Handle wallet events
     this.on('walletInitialized', () => {
@@ -108,8 +114,41 @@ class ChilizService extends EventEmitter {
     // Handle connection events
     this.on('connectionInitialized', () => {
       if (this.chilizConnection) {
+        // Handle wallet transaction events from the new event-driven system
+        this.chilizConnection.on('walletTransaction', (txData) => {
+          console.log(`🔄 Wallet transaction processed: ${txData.type.toUpperCase()}`);
+          console.log(`   Amount: ${txData.value} CHZ`);
+          console.log(`   Hash: ${txData.hash}`);
+          console.log(`   Block: ${txData.blockNumber}`);
+          this.emit('walletTransaction', txData);
+        });
+
+        this.chilizConnection.on('incomingTransaction', (txData) => {
+          // Connection layer already logs details, just emit for external handlers
+          this.emit('incomingTransaction', txData);
+        });
+
+        this.chilizConnection.on('outgoingTransaction', (txData) => {
+          // Connection layer already logs details, just emit for external handlers
+          this.emit('outgoingTransaction', txData);
+        });
+
+        this.chilizConnection.on('pendingTransaction', (txData) => {
+          console.log(`⏳ Pending wallet transaction: ${txData.type.toUpperCase()}`);
+          console.log(`   Amount: ${txData.value} CHZ`);
+          console.log(`   Hash: ${txData.hash}`);
+          this.emit('pendingTransaction', txData);
+        });
+
+        this.chilizConnection.on('transactionSent', (txData) => {
+          console.log(`📤 SENT: ${txData.amount} CHZ to ${txData.to}`);
+          console.log(`   Hash: ${txData.hash}`);
+          this.emit('transactionSent', txData);
+        });
+
         this.chilizConnection.on('newBlock', (blockData) => {
-          console.log(`🔗 New block: ${blockData.blockNumber} (${new Date(blockData.timestamp * 1000).toISOString()})`);
+          console.log(`📦 New block processed: ${blockData.blockNumber} (${blockData.transactionCount} txs)`);
+          this.emit('newBlock', blockData);
         });
 
         this.chilizConnection.on('connected', () => {
@@ -182,9 +221,12 @@ class ChilizService extends EventEmitter {
     // Emit initialization events
     this.emit('connectionInitialized');
     this.emit('walletInitialized');
+    // Contract manager initialization disabled
+    /*
     if (this.contractManager) {
       this.emit('contractInitialized');
     }
+    */
 
     // Set up automatic payback rules (example configuration)
     this.setupDefaultPaybackRules();

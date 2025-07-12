@@ -15,20 +15,11 @@ class ChilizConnection extends EventEmitter {
     this.reconnectInterval = 5000;
     this.subscriptions = new Map();
     this.lastProcessedBlock = 0;
-    this.verboseLogging = config.verboseLogging || false; // Enable detailed logging for debugging
-  }
-
-  // Helper method for conditional logging
-  logVerbose(message, ...args) {
-    if (this.verboseLogging) {
-      console.log(message, ...args);
-    }
   }
 
   async initialize() {
     try {
-      console.log('🚀 Initializing optimized event-driven Chiliz connection...');
-      console.log('📊 Optimizations: Only wallet-relevant blocks/transactions will be logged');
+      console.log('🚀 Initializing event-driven Chiliz connection...');
       
       // Initialize HTTP provider for transactions and fallback
       this.httpProvider = new ethers.JsonRpcProvider(this.config.httpUrl);
@@ -86,24 +77,20 @@ class ChilizConnection extends EventEmitter {
     try {
       // Listen for new blocks using ethers.js event system
       this.wsProvider.on('block', async (blockNumber) => {
-        // Only log if block contains wallet transactions (logging moved to processBlock)
+        console.log(`📦 New block detected: ${blockNumber}`);
         await this.processBlock(blockNumber);
       });
 
-      // Try to set up address-specific filters for more efficient monitoring
-      if (this.wallet) {
-        try {
-          await this.setupAddressSpecificFilters();
-        } catch (filterError) {
-          console.warn('⚠️ Address-specific filters not supported, using general pending listener:', filterError.message);
-        }
-      }
+      // Listen for specific transaction events involving our wallet
+      const walletFilter = {
+        address: null, // Listen to all addresses
+        topics: [] // Listen to all topics
+      };
 
       // Alternative: Listen for pending transactions (if supported)
-      // Note: This receives ALL pending transactions, but we filter them in processPendingTransaction
       try {
         this.wsProvider.on('pending', async (txHash) => {
-          // Only log if transaction involves wallet (logging moved to processPendingTransaction)
+          console.log(`⏳ Pending transaction detected: ${txHash}`);
           await this.processPendingTransaction(txHash);
         });
         console.log('✅ Pending transaction listener active');
@@ -158,18 +145,27 @@ class ChilizConnection extends EventEmitter {
     try {
       if (blockNumber <= this.lastProcessedBlock) return;
       
+      console.log(`🔍 Processing block ${blockNumber} for wallet transactions...`);
+      
       const provider = this.wsProvider || this.httpProvider;
       const block = await provider.getBlock(blockNumber, true);
       
       if (!block || !block.transactions) {
-        this.logVerbose(`⚠️ Block ${blockNumber} has no transactions`);
+        console.log(`⚠️ Block ${blockNumber} has no transactions`);
         this.lastProcessedBlock = blockNumber;
         return;
       }
 
-      // Process transactions for our wallet first to determine if we should log
+      // Emit new block event
+      this.emit('newBlock', {
+        blockNumber: block.number,
+        blockHash: block.hash,
+        timestamp: block.timestamp,
+        transactionCount: block.transactions.length
+      });
+
+      // Process transactions for our wallet
       let walletTransactionsFound = 0;
-      const walletTransactions = [];
       
       for (const tx of block.transactions) {
         try {
@@ -181,32 +177,15 @@ class ChilizConnection extends EventEmitter {
 
           if (transaction && this.isWalletTransaction(transaction)) {
             walletTransactionsFound++;
-            walletTransactions.push(transaction);
+            await this.processWalletTransaction(transaction, block);
           }
         } catch (txError) {
           console.error(`Error processing transaction in block ${blockNumber}:`, txError.message);
         }
       }
 
-      // Only log and emit events if wallet transactions were found
       if (walletTransactionsFound > 0) {
-        console.log(`📦 Block ${blockNumber} contains ${walletTransactionsFound} wallet transaction(s)`);
-        
-        // Emit new block event only for blocks with wallet transactions
-        this.emit('newBlock', {
-          blockNumber: block.number,
-          blockHash: block.hash,
-          timestamp: block.timestamp,
-          transactionCount: block.transactions.length,
-          walletTransactionCount: walletTransactionsFound
-        });
-
-        // Process the wallet transactions
-        for (const transaction of walletTransactions) {
-          await this.processWalletTransaction(transaction, block);
-        }
-
-        console.log(`✅ Processed ${walletTransactionsFound} wallet transaction(s) in block ${blockNumber}`);
+        console.log(`✅ Found ${walletTransactionsFound} wallet transaction(s) in block ${blockNumber}`);
       }
 
       this.lastProcessedBlock = blockNumber;
@@ -233,7 +212,6 @@ class ChilizConnection extends EventEmitter {
           timestamp: Date.now()
         });
       }
-      // No logging for non-wallet pending transactions
     } catch (error) {
       console.error(`Error processing pending transaction ${txHash}:`, error.message);
     }
@@ -402,14 +380,132 @@ class ChilizConnection extends EventEmitter {
     }
   }
 
-  // Remove the old balance monitoring method as it's replaced by event-driven processing
   startBalanceMonitoring() {
-    console.log('⚠️ Balance monitoring deprecated - using event-driven transaction detection');
+    console.log('� Starting balance monitoring for transaction detection...');
+    
+    let lastBalance = null;
+    let lastBlockNumber = 0;
+    
+    const monitorBalance = async () => {
+      try {
+        const currentBlockNumber = await this.provider.getBlockNumber();
+        const currentBalance = await this.provider.getBalance(this.wallet.address);
+        const balanceInCHZ = ethers.formatEther(currentBalance);
+        
+        // Only emit new block events for new blocks
+        if (currentBlockNumber > lastBlockNumber) {
+          const block = await this.provider.getBlock(currentBlockNumber);
+          this.emit('newBlock', {
+            blockNumber: currentBlockNumber,
+            blockHash: block.hash,
+            timestamp: block.timestamp
+          });
+          lastBlockNumber = currentBlockNumber;
+        }
+        
+        // Check for balance changes (indicating transactions)
+        if (lastBalance !== null && currentBalance.toString() !== lastBalance.toString()) {
+          const balanceChangeBigInt = currentBalance - lastBalance;
+          const changeInCHZ = ethers.formatEther(balanceChangeBigInt < 0n ? (-balanceChangeBigInt).toString() : balanceChangeBigInt.toString());
+          
+          // Get the block with transactions to find the relevant transaction
+          const block = await this.provider.getBlock(currentBlockNumber, true);
+          let transactionDetails = null;
+          
+          // Find the transaction involving our wallet
+          if (block && block.transactions) {
+            for (const tx of block.transactions) {
+              // Handle both transaction objects and transaction hashes
+              let transaction = tx;
+              if (typeof tx === 'string') {
+                // If it's just a hash, get the full transaction
+                transaction = await this.provider.getTransaction(tx);
+              }
+              
+              if (transaction && (transaction.from === this.wallet.address || transaction.to === this.wallet.address)) {
+                transactionDetails = {
+                  hash: transaction.hash,
+                  from: transaction.from,
+                  to: transaction.to,
+                  value: ethers.formatEther(transaction.value),
+                  gasPrice: transaction.gasPrice ? ethers.formatUnits(transaction.gasPrice, 'gwei') : '0',
+                  gasLimit: transaction.gasLimit ? transaction.gasLimit.toString() : '21000'
+                };
+                break;
+              }
+            }
+          }
+          
+          if (balanceChangeBigInt > 0n) {
+            // Balance increased - incoming transaction
+            console.log(`💰 INCOMING: +${changeInCHZ} CHZ received`);
+            console.log(`   From: ${transactionDetails?.from || 'Unknown'}`);
+            console.log(`   To: ${this.wallet.address}`);
+            if (transactionDetails?.hash) {
+              console.log(`   Hash: ${transactionDetails.hash}`);
+            }
+            console.log(`   New balance: ${balanceInCHZ} CHZ`);
+            console.log(`   Block: ${currentBlockNumber}`);
+            
+            this.emit('incomingTransaction', {
+              amount: changeInCHZ,
+              balanceChange: `+${changeInCHZ}`,
+              newBalance: balanceInCHZ,
+              from: transactionDetails?.from || 'Unknown',
+              to: this.wallet.address,
+              hash: transactionDetails?.hash || 'Unknown',
+              blockNumber: currentBlockNumber,
+              timestamp: Date.now(),
+              type: 'incoming'
+            });
+          } else {
+            // Balance decreased - outgoing transaction (including gas)
+            console.log(`💸 OUTGOING: -${changeInCHZ} CHZ sent (including gas)`);
+            console.log(`   From: ${this.wallet.address}`);
+            console.log(`   To: ${transactionDetails?.to || 'Unknown'}`);
+            if (transactionDetails?.value) {
+              console.log(`   Amount: ${transactionDetails.value} CHZ (+ gas)`);
+            }
+            if (transactionDetails?.hash) {
+              console.log(`   Hash: ${transactionDetails.hash}`);
+            }
+            console.log(`   New balance: ${balanceInCHZ} CHZ`);
+            console.log(`   Block: ${currentBlockNumber}`);
+            
+            this.emit('outgoingTransaction', {
+              amount: changeInCHZ,
+              balanceChange: `-${changeInCHZ}`,
+              newBalance: balanceInCHZ,
+              from: this.wallet.address,
+              to: transactionDetails?.to || 'Unknown',
+              transactionAmount: transactionDetails?.value || 'Unknown',
+              hash: transactionDetails?.hash || 'Unknown',
+              blockNumber: currentBlockNumber,
+              timestamp: Date.now(),
+              type: 'outgoing'
+            });
+          }
+        }
+        
+        lastBalance = currentBalance;
+      } catch (error) {
+        console.error('Error monitoring balance:', error.message);
+      }
+    };
+    
+    // Monitor every 3 seconds
+    this.balanceMonitoringInterval = setInterval(monitorBalance, 3000);
+    
+    // Initial check
+    monitorBalance();
   }
 
   stopBalanceMonitoring() {
-    // Method kept for backward compatibility but no longer needed
-    console.log('💰 Balance monitoring not active (using event-driven mode)');
+    if (this.balanceMonitoringInterval) {
+      clearInterval(this.balanceMonitoringInterval);
+      this.balanceMonitoringInterval = null;
+      console.log('💰 Balance monitoring stopped');
+    }
   }
 
   stopBlockPolling() {
@@ -420,78 +516,14 @@ class ChilizConnection extends EventEmitter {
     }
   }
 
-  async getCurrentBlockNumber() {
-    try {
-      const provider = this.wsProvider || this.httpProvider;
-      return await provider.getBlockNumber();
-    } catch (error) {
-      console.error('Error getting current block number:', error);
-      throw error;
-    }
-  }
-
-  async setupAddressSpecificFilters() {
-    if (!this.wallet || !this.wsProvider) return;
-
-    const walletAddress = this.wallet.address.toLowerCase();
-    console.log(`🎯 Setting up address-specific filters for wallet: ${walletAddress}`);
-
-    try {
-      // Create filter for transactions TO our wallet address
-      const incomingFilter = {
-        address: null, // For regular transactions, this would be contract addresses
-        topics: [
-          null, // First topic is event signature (null = any)
-          null, // Second topic could be from address
-          ethers.zeroPadValue(walletAddress, 32) // Third topic is to address (padded to 32 bytes)
-        ]
-      };
-
-      // Create filter for transactions FROM our wallet address  
-      const outgoingFilter = {
-        address: null,
-        topics: [
-          null, // Event signature
-          ethers.zeroPadValue(walletAddress, 32), // From address (padded to 32 bytes)
-          null // To address
-        ]
-      };
-
-      // Note: For regular ETH/CHZ transfers, we might not get events since they don't emit logs
-      // This approach works better for ERC-20 token transfers or smart contract interactions
-      // For regular transfers, we still need to monitor all blocks or use pending transactions
-
-      console.log('✅ Address-specific filters configured (note: regular CHZ transfers still require block monitoring)');
-      
-    } catch (error) {
-      console.warn('⚠️ Could not set up address-specific filters:', error.message);
-      throw error;
-    }
-  }
-
   disconnect() {
-    console.log('🔌 Disconnecting from Chiliz network...');
+    this.stopBalanceMonitoring();
     
-    this.stopBlockPolling();
-    
-    if (this.wsProvider) {
-      try {
-        this.wsProvider.destroy();
-        this.wsProvider = null;
-        console.log('✅ WebSocket provider disconnected');
-      } catch (error) {
-        console.error('Error disconnecting WebSocket provider:', error);
-      }
+    if (this.websocket) {
+      this.websocket.close();
     }
-    
-    if (this.httpProvider) {
-      this.httpProvider = null;
-      console.log('✅ HTTP provider disconnected');
-    }
-    
     this.isConnected = false;
-    this.subscriptions.clear();
-    console.log('🔌 Disconnected from Chiliz network');
+    console.log('Disconnected from Chiliz network');
   }
 }
 
