@@ -20,139 +20,319 @@ export function withWallet(Component) {
 const WalletProvider = React.memo(({ children }) => {
     const [chainId, setChainId] = React.useState(null);
     const [account, setAccount] = React.useState(null);
+    const [isAuthenticated, setIsAuthenticated] = React.useState(false);
     const [web3, setWeb3] = React.useState(null);
-    const [isAuthenticated, setAuthenticated] = React.useState(false);
-    const [appLoading, setAppLoading] = React.useState(false);
-
-    console.log({ chainId, account, web3, isAuthenticated });
-
-    React.useEffect(() => {
-        connectEagerly();
-        return () => {
-            const provider = getProvider();
-            unsubscribeToEvents(provider);
-        }
-    }, []);
-
-    const subscribeToEvents = (provider) => {
-        if (provider && provider.on) {
-            provider.on(EthereumEvents.CHAIN_CHANGED, handleChainChanged);
-            provider.on(EthereumEvents.ACCOUNTS_CHANGED, handleAccountsChanged);
-            provider.on(EthereumEvents.CONNECT, handleConnect);
-            provider.on(EthereumEvents.DISCONNECT, handleDisconnect);
-        }
-    }
-
-    const unsubscribeToEvents = (provider) => {
-        if (provider && provider.removeListener) {
-            provider.removeListener(EthereumEvents.CHAIN_CHANGED, handleChainChanged);
-            provider.removeListener(EthereumEvents.ACCOUNTS_CHANGED, handleAccountsChanged);
-            provider.removeListener(EthereumEvents.CONNECT, handleConnect);
-            provider.removeListener(EthereumEvents.DISCONNECT, handleDisconnect);
-        }
-    }
-
-    const connectEagerly = async () => {
-        const metamask = await storage.get('metamask-connected');
-        if (metamask?.connected) {
-            await connectWallet();
-        }
-    }
+    const [provider, setProvider] = React.useState(null);
+    const [roundUpSettings, setRoundUpSettings] = React.useState({
+        enabled: false,
+        roundUpTo: 5,
+        maxPerTransaction: 10
+    });
+    const [isRoundUpActive, setIsRoundUpActive] = React.useState(false);
+    const [totalSaved, setTotalSaved] = React.useState(0);
 
     const getProvider = () => {
         if (window.ethereum) {
-            console.log('found window.ethereum>>');
+            console.log('🔗 Found window.ethereum');
             return window.ethereum;
         } else {
+            console.log('🔗 Creating MetaMask provider');
             const provider = createMetaMaskProvider();
             return provider;
         }
     }
 
-    const getAccounts = async (provider) => {
-        if (provider) {
-            const [accounts, chainId] = await Promise.all([
-                provider.request({
-                    method: 'eth_requestAccounts',
-                }),
-                provider.request({ method: 'eth_chainId' }),
-            ]);
-            return [accounts, chainId];
-        }
-        return false;
-    }
-
     const connectWallet = async () => {
-        console.log("connectWallet runs....")
         try {
             const provider = getProvider();
-            const [accounts, chainId] = await getAccounts(provider);
-            if (accounts && chainId) {
-                setAppLoading(true);
-                const account = getNormalizeAddress(accounts);
-                const web3 = new Web3(provider);
-                setAccount(account);
-                setChainId(chainId);
-                setWeb3(web3);
-                setAuthenticated(true);
-                storage.set('metamask-connected', { connected: true });
-                subscribeToEvents(provider)
-            }
-        } catch (e) {
-            console.log("error while connect", e);
-        } finally {
-            setAppLoading(false);
+            const web3Instance = new Web3(provider);
+            
+            // Request account access
+            const accounts = await provider.request({ method: 'eth_requestAccounts' });
+            const chainId = await provider.request({ method: 'eth_chainId' });
+            
+            setProvider(provider);
+            setWeb3(web3Instance);
+            setAccount(getNormalizeAddress(accounts));
+            setChainId(chainId);
+            setIsAuthenticated(true);
+            
+            // Load round-up settings
+            await loadRoundUpSettings();
+            
+            // Set up event listeners
+            setupEventListeners(provider);
+            
+            // Store connection
+            await storage.set('wallet', { 
+                account: getNormalizeAddress(accounts), 
+                chainId,
+                connected: true 
+            });
+            
+            console.log('✅ Wallet connected successfully');
+            
+        } catch (error) {
+            console.error('❌ Failed to connect wallet:', error);
+            throw error;
         }
-    }
+    };
 
-    const disconnectWallet = () => {
-        console.log("disconnectWallet runs")
+    const disconnectWallet = async () => {
         try {
-            storage.set('metamask-connected', { connected: false });
+            // Remove event listeners
+            if (provider) {
+                removeEventListeners(provider);
+            }
+            
+            // Clear state
+            setProvider(null);
+            setWeb3(null);
             setAccount(null);
             setChainId(null);
-            setAuthenticated(false);
-            setWeb3(null);
-        } catch (e) {
-            console.log(e);
+            setIsAuthenticated(false);
+            setIsRoundUpActive(false);
+            
+            // Clear storage
+            await storage.set('wallet', { connected: false });
+            
+            console.log('✅ Wallet disconnected');
+        } catch (error) {
+            console.error('❌ Failed to disconnect wallet:', error);
         }
-    }
+    };
+
+    const setupEventListeners = (provider) => {
+        provider.on(EthereumEvents.ACCOUNTS_CHANGED, handleAccountsChanged);
+        provider.on(EthereumEvents.CHAIN_CHANGED, handleChainChanged);
+        provider.on(EthereumEvents.CONNECT, handleConnect);
+        provider.on(EthereumEvents.DISCONNECT, handleDisconnect);
+    };
+
+    const removeEventListeners = (provider) => {
+        provider.removeListener(EthereumEvents.ACCOUNTS_CHANGED, handleAccountsChanged);
+        provider.removeListener(EthereumEvents.CHAIN_CHANGED, handleChainChanged);
+        provider.removeListener(EthereumEvents.CONNECT, handleConnect);
+        provider.removeListener(EthereumEvents.DISCONNECT, handleDisconnect);
+    };
 
     const handleAccountsChanged = (accounts) => {
-        setAccount(getNormalizeAddress(accounts));
-        console.log("[account changes]: ", getNormalizeAddress(accounts))
-    }
+        if (accounts.length === 0) {
+            disconnectWallet();
+        } else {
+            setAccount(getNormalizeAddress(accounts));
+        }
+    };
 
     const handleChainChanged = (chainId) => {
         setChainId(chainId);
-        console.log("[chainId changes]: ", chainId)
-    }
+    };
 
-    const handleConnect = () => {
-        setAuthenticated(true);
-        console.log("[connected]")
-    }
+    const handleConnect = (connectInfo) => {
+        console.log('🔗 Connected to chain:', connectInfo.chainId);
+    };
 
-    const handleDisconnect = () => {
-        console.log("[disconnected]")
+    const handleDisconnect = (error) => {
+        console.log('🔌 Disconnected:', error);
         disconnectWallet();
-    }
+    };
+
+    // Round-up functionality
+    const loadRoundUpSettings = async () => {
+        try {
+            const response = await sendToBackground({
+                action: 'GET_ROUNDUP_SETTINGS'
+            });
+            
+            if (response.success) {
+                setRoundUpSettings(response.data);
+            }
+        } catch (error) {
+            console.error('❌ Failed to load round-up settings:', error);
+        }
+    };
+
+    const updateRoundUpSettings = async (newSettings) => {
+        try {
+            const response = await sendToBackground({
+                action: 'SET_ROUNDUP_SETTINGS',
+                settings: newSettings
+            });
+            
+            if (response.success) {
+                setRoundUpSettings(newSettings);
+                console.log('✅ Round-up settings updated');
+            }
+        } catch (error) {
+            console.error('❌ Failed to update round-up settings:', error);
+            throw error;
+        }
+    };
+
+    const monitorTransaction = async (txHash) => {
+        if (!account) return;
+        
+        try {
+            await sendToBackground({
+                action: 'MONITOR_TRANSACTION',
+                txHash: txHash,
+                userAddress: account
+            });
+            
+            console.log('🔍 Transaction monitoring started:', txHash);
+        } catch (error) {
+            console.error('❌ Failed to monitor transaction:', error);
+        }
+    };
+
+    const sendTransaction = async (to, value, data = '0x') => {
+        if (!web3 || !account) {
+            throw new Error('Wallet not connected');
+        }
+
+        try {
+            const txParams = {
+                from: account,
+                to: to,
+                value: web3.utils.toWei(value.toString(), 'ether'),
+                data: data
+            };
+
+            const txHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+
+            console.log('📤 Transaction sent:', txHash);
+            
+            // Monitor transaction for round-up if enabled
+            if (roundUpSettings.enabled) {
+                await monitorTransaction(txHash);
+            }
+            
+            return txHash;
+        } catch (error) {
+            console.error('❌ Transaction failed:', error);
+            throw error;
+        }
+    };
+
+    const executeRoundUpDeposit = async (amount) => {
+        if (!web3 || !account) {
+            throw new Error('Wallet not connected');
+        }
+
+        try {
+            setIsRoundUpActive(true);
+            
+            // TODO: Replace with your actual smart contract address
+            const contractAddress = '0x1234567890123456789012345678901234567890';
+            
+            const txParams = {
+                from: account,
+                to: contractAddress,
+                value: web3.utils.toWei(amount.toString(), 'ether'),
+                data: '0x' // Call deposit function
+            };
+
+            const txHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+
+            console.log('💰 Round-up deposit sent:', txHash);
+            
+            // Update total saved
+            setTotalSaved(prev => prev + amount);
+            
+            return txHash;
+        } catch (error) {
+            console.error('❌ Round-up deposit failed:', error);
+            throw error;
+        } finally {
+            setIsRoundUpActive(false);
+        }
+    };
+
+    const sendToBackground = (message) => {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(message, (response) => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
+                } else {
+                    resolve(response);
+                }
+            });
+        });
+    };
+
+    // Initialize wallet connection on mount
+    React.useEffect(() => {
+        const initializeWallet = async () => {
+            try {
+                const walletData = await storage.get('wallet');
+                if (walletData && walletData.connected) {
+                    await connectWallet();
+                }
+            } catch (error) {
+                console.error('❌ Failed to initialize wallet:', error);
+            }
+        };
+
+        initializeWallet();
+    }, []);
+
+    // Listen for round-up triggers from background
+    React.useEffect(() => {
+        const handleBackgroundMessage = (message, sender, sendResponse) => {
+            if (message.action === 'TRIGGER_ROUNDUP_DEPOSIT') {
+                executeRoundUpDeposit(message.amount)
+                    .then(txHash => {
+                        sendResponse({ success: true, txHash });
+                    })
+                    .catch(error => {
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true; // Keep message channel open
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(handleBackgroundMessage);
+        
+        return () => {
+            chrome.runtime.onMessage.removeListener(handleBackgroundMessage);
+        };
+    }, [account, web3, roundUpSettings]);
+
+    const value = {
+        // Wallet state
+        account,
+        chainId,
+        isAuthenticated,
+        web3,
+        provider,
+        
+        // Wallet methods
+        connectWallet,
+        disconnectWallet,
+        sendTransaction,
+        
+        // Round-up state
+        roundUpSettings,
+        isRoundUpActive,
+        totalSaved,
+        
+        // Round-up methods
+        updateRoundUpSettings,
+        executeRoundUpDeposit,
+        monitorTransaction
+    };
 
     return (
-        <WalletContext.Provider
-            value={{
-                disconnectWallet,
-                connectWallet,
-                isAuthenticated,
-                appLoading,
-                account,
-                chainId,
-                web3
-            }}
-        >
+        <WalletContext.Provider value={value}>
             {children}
         </WalletContext.Provider>
-    )
+    );
 });
 
-export default WalletProvider 
+export default WalletProvider; 

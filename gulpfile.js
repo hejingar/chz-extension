@@ -20,58 +20,82 @@ gulp.task('lint', function () {
     .pipe(gulpESLintNew.failAfterError());
 });
 
-gulp.task('build', function (done) {
+gulp.task('build-app', function (done) {
   browserify({ entries: './src/index.js', debug: true }).plugin('css-modulesify', {
     o: config.root + '/chz-extension.css'
   }).transform(babelify)
     .bundle()
     .pipe(source('chz-extension.bundle.js'))
-    .pipe(gulp.dest(config.root + '/js'))
-    .pipe(connect.reload());
-
-  done();
+    .pipe(gulp.dest(config.root + '/js/'))
+    .on('error', function (err) {
+      console.error('Build error:', err);
+      done(err);
+    })
+    .on('end', function () {
+      done();
+    });
 });
 
-gulp.task('copy-manifest', function (done) {
-  gulp.src('./manifest.json')
-    .pipe(gulp.dest(config.root));
-
-  done()
+gulp.task('build-background', function (done) {
+  browserify({ entries: './src/background.js', debug: true })
+    .transform(babelify)
+    .bundle()
+    .pipe(source('background.js'))
+    .pipe(gulp.dest(config.root + '/js/'))
+    .on('error', function (err) {
+      console.error('Background build error:', err);
+      done(err);
+    })
+    .on('end', function () {
+      done();
+    });
 });
 
-gulp.task('copy-html', function (done) {
+gulp.task('build-html', function (done) {
   gulp.src('./popup.html')
-    .pipe(gulp.dest(config.root));
-
-  done()
+    .pipe(gulp.dest(config.root))
+    .on('end', function () {
+      done();
+    });
 });
 
-gulp.task('copy-icons', function (done) {
+gulp.task('build-manifest', function (done) {
+  gulp.src('./manifest.json')
+    .pipe(gulp.dest(config.root))
+    .on('end', function () {
+      done();
+    });
+});
+
+gulp.task('build-assets', function (done) {
   gulp.src('./icon.svg')
-    .pipe(gulp.dest(config.root));
-
-  done()
+    .pipe(gulp.dest(config.root))
+    .on('end', function () {
+      done();
+    });
 });
 
-gulp.task('connect', function (done) {
+gulp.task('build', gulp.series('build-app', 'build-background', 'build-html', 'build-manifest', 'build-assets'));
+
+gulp.task('connect', function () {
   connect.server({
-    name: 'CHZ Extension',
-    root: 'dist',
+    root: config.root,
     port: config.port,
-    devBaseUrl: config.devBaseUrl,
+    base: config.devBaseUrl + ':' + config.port,
     livereload: true
   });
+});
 
-  open(`${config.devBaseUrl}:${config.port}`)
-
-  done();
+gulp.task('open', function () {
+  gulp.src(config.root + '/index.html')
+    .pipe(open('', { url: config.devBaseUrl + ':' + config.port + '/index.html' }));
 });
 
 gulp.task('watch', function () {
-  gulp.watch('./src/**/*.js', gulp.series('lint', 'build'));
-  gulp.watch('./src/**/*.css', gulp.series('build'));
-  gulp.watch('./manifest.json', gulp.series('copy-manifest'));
-  gulp.watch('./popup.html', gulp.series('copy-html'));
+  gulp.watch('./src/**/*.js', gulp.series('build-app', 'build-background'));
+  gulp.watch('./popup.html', gulp.series('build-html'));
+  gulp.watch('./manifest.json', gulp.series('build-manifest'));
+  gulp.watch('./icon.svg', gulp.series('build-assets'));
 });
 
-gulp.task('default', gulp.series('copy-manifest', 'copy-html', 'copy-icons', 'build')); 
+gulp.task('default', gulp.series('build')); 

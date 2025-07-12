@@ -7,6 +7,9 @@
       "default_popup": "popup.html",
       "default_title": "Open CHZ Extension"
     },
+    "background": {
+      "service_worker": "js/background.js"
+    },
     "icons": {
       "16": "icon.svg",
       "48": "icon.svg",
@@ -16,7 +19,14 @@
       "activeTab",
       "tabs", 
       "webNavigation",
-      "storage"
+      "storage",
+      "webRequest",
+      "declarativeNetRequest",
+      "notifications"
+    ],
+    "host_permissions": [
+      "https://*/*",
+      "http://*/*"
     ],
     "optional_permissions": []
   } 

@@ -68,23 +68,351 @@ code {
 .app-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
+  margin-top: 20px;
 }
 
-.app-actions button {
-  padding: 10px 15px;
+.test-transaction-btn {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
   font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  font-weight: 500;
   cursor: pointer;
-  background-color: white;
+  transition: all 0.3s ease;
 }
 
-.app-actions button:hover:not(:disabled) {
-  background-color: #f0f0f0;
+.test-transaction-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
 }
 
-.app-actions button:disabled {
-  opacity: 0.5;
+.test-transaction-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.last-transaction {
+  background: #e8f5e8;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #4caf50;
+  text-align: left;
+}
+
+.last-transaction p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.tx-hash {
+  font-family: monospace;
+  font-size: 12px !important;
+  word-break: break-all;
+  background: #f0f0f0;
+  padding: 8px;
+  border-radius: 4px;
+  color: #333;
+}
+
+.instructions {
+  background: #fff3cd;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #ffc107;
+  text-align: left;
+  margin-top: 15px;
+}
+
+.instructions h4 {
+  margin: 0 0 10px 0;
+  color: #856404;
+  font-size: 1em;
+}
+
+.instructions ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #856404;
+}
+
+.instructions li {
+  margin: 5px 0;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+/* Responsive design */
+@media (max-width: 400px) {
+  .App {
+    min-width: 300px;
+  }
+  
+  .App-body {
+    padding: 15px;
+  }
+  
+  .wallet-info {
+    padding: 10px;
+  }
+  
+  .test-transaction-btn {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  
+  .instructions {
+    padding: 10px;
+  }
+} .roundup-settings {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.settings-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.settings-header h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1.4em;
+}
+
+.settings-description {
+  color: #666;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.savings-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.savings-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: 0.8em;
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.savings-status {
+  font-size: 0.9em;
+}
+
+.status-active {
+  color: #ffeb3b;
+  animation: pulse 2s infinite;
+}
+
+.status-ready {
+  color: #4caf50;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.settings-form {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 6px;
+}
+
+.setting-group {
+  margin-bottom: 20px;
+}
+
+.setting-label {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.setting-label input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  margin-right: 10px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.setting-label input[type="checkbox"]:checked + .checkbox-custom {
+  background: #667eea;
+  border-color: #667eea;
+}
+
+.setting-label input[type="checkbox"]:checked + .checkbox-custom::after {
+  content: '\2713';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.setting-select {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.setting-description {
+  color: #666;
+  font-size: 0.85em;
+  margin: 5px 0 0 0;
+  line-height: 1.4;
+}
+
+.example-calculation {
+  background: #e8f5e8;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #4caf50;
+  margin-top: 15px;
+}
+
+.example-calculation h4 {
+  margin: 0 0 10px 0;
+  color: #2e7d32;
+  font-size: 1em;
+}
+
+.example-calculation p {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.save-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+}
+
+.save-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.save-button.saving {
+  animation: saveButtonPulse 1.5s infinite;
+}
+
+@keyframes saveButtonPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.success-message {
+  color: #4caf50;
+  font-size: 14px;
+  font-weight: 500;
+  animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(10px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Responsive design */
+@media (max-width: 400px) {
+  .roundup-settings {
+    padding: 15px;
+    margin: 15px 0;
+  }
+  
+  .savings-summary {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .settings-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .save-button {
+    width: 100%;
+  }
 } 
