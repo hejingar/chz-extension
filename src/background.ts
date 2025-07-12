@@ -1,6 +1,45 @@
 // Background script pour l'extension Chrome
 import { ethers } from 'ethers';
 
+// Types Chrome pour Service Worker
+declare const chrome: {
+  runtime: {
+    onStartup: {
+      addListener: (callback: () => void) => void;
+    };
+    onInstalled: {
+      addListener: (callback: () => void) => void;
+    };
+    onMessage: {
+      addListener: (callback: (request: any, sender: any, sendResponse: (response: any) => void) => boolean) => void;
+    };
+    sendMessage: (message: any) => Promise<any>;
+    onSuspend: {
+      addListener: (callback: () => void) => void;
+    };
+    lastError?: any;
+  };
+  storage: {
+    local: {
+      get: (keys: string[]) => Promise<any>;
+      set: (items: any) => Promise<void>;
+    };
+    onChanged: {
+      addListener: (callback: (changes: any, namespace: string) => void) => void;
+    };
+  };
+  notifications: {
+    create: (id: string, options: any, callback?: (notificationId: string) => void) => void;
+    clear: (notificationId: string) => void;
+    onClicked: {
+      addListener: (callback: (notificationId: string) => void) => void;
+    };
+  };
+  tabs: {
+    create: (createProperties: { url: string }) => void;
+  };
+};
+
 console.log('Background script started');
 
 // Configuration pour WebSocket EVM et polling
@@ -25,7 +64,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Gestion des messages depuis le popup
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request: any, _sender: any, sendResponse: (response: any) => void) => {
   console.log('Message received:', request);
   
   switch (request.action) {
@@ -207,7 +246,7 @@ async function notifyUserTransaction(tx: ethers.TransactionResponse) {
     };
     
     // Afficher la notification
-    chrome.notifications.create(tx.hash, notificationOptions, (notificationId) => {
+    chrome.notifications.create(tx.hash, notificationOptions, (notificationId: string) => {
       if (chrome.runtime.lastError) {
         console.error('Error creating notification:', chrome.runtime.lastError);
       } else {
@@ -299,7 +338,7 @@ async function pollUserData(address: string) {
 }
 
 // Écouter les changements dans le stockage
-chrome.storage.onChanged.addListener((changes, namespace) => {
+chrome.storage.onChanged.addListener((changes: any, namespace: string) => {
   if (namespace === 'local' && changes.userAddress) {
     const newAddress = changes.userAddress.newValue;
     
@@ -319,7 +358,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // Gestion des clics sur les notifications
-chrome.notifications.onClicked.addListener((notificationId) => {
+chrome.notifications.onClicked.addListener((notificationId: string) => {
   console.log('Notification clicked:', notificationId);
   
   // Ouvrir l'explorateur de blocs avec la transaction

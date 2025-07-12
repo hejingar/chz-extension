@@ -33,6 +33,217 @@
   overflow-y: auto;
 }
 
+/* Section de vérification MetaMask */
+.checking-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 24px;
+  padding: 60px 0;
+}
+
+.loading-message h2 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.loading-spinner {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Section d'erreur MetaMask */
+.metamask-error-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.error-message-detailed {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 280px;
+}
+
+.error-message-detailed h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffcdd2;
+}
+
+.error-message-detailed p {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.install-button, .retry-button {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.install-button {
+  background: #4caf50;
+  color: white;
+}
+
+.install-button:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.retry-button {
+  background: transparent;
+  color: #ffcc80;
+  border: 1px solid #ffcc80;
+}
+
+.retry-button:hover {
+  background: #ffcc80;
+  color: #333;
+}
+
+.diagnostics-button {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #81c784;
+  background: transparent;
+  color: #81c784;
+  margin-top: 8px;
+}
+
+.diagnostics-button:hover {
+  background: #81c784;
+  color: #333;
+}
+
+/* Section des diagnostics */
+.diagnostics-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.diagnostics-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e1f5fe;
+}
+
+.diagnostics-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diagnostic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.diagnostic-item:last-child {
+  border-bottom: none;
+}
+
+.diagnostic-label {
+  font-size: 12px;
+  color: #b0bec5;
+  flex: 1;
+}
+
+.diagnostic-value {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
+.diagnostic-value.success {
+  background: rgba(76, 175, 80, 0.2);
+  color: #a5d6a7;
+}
+
+.diagnostic-value.error {
+  background: rgba(244, 67, 54, 0.2);
+  color: #ef9a9a;
+}
+
+.diagnostic-value.warning {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ffcc80;
+}
+
+/* Sections d'avertissement diagnostics */
+.diagnostic-warning {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 6px;
+  border-left: 4px solid #ff9800;
+}
+
+.diagnostic-warning h4 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffcc80;
+}
+
+.diagnostic-warning p {
+  margin: 0;
+  font-size: 12px;
+  color: #ffcc80;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.help-text {
+  text-align: left;
+  opacity: 0.7;
+}
+
+.help-text small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Section de connexion */
 .connection-section {
   display: flex;
@@ -338,5 +549,9 @@
   
   .service-toggle {
     align-self: flex-end;
+  }
+  
+  .error-actions {
+    flex-direction: column;
   }
 } 

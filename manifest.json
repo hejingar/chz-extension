@@ -1,25 +1,40 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "CHZ Extension",
   "version": "1.0.0",
   "description": "Extension Chrome pour CHZ avec connexion Metamask",
   "permissions": [
     "storage",
     "activeTab",
+    "notifications"
+  ],
+  "host_permissions": [
     "https://*/*"
   ],
-  "browser_action": {
+  "action": {
     "default_popup": "popup.html",
-    "default_title": "CHZ Extension"
+    "default_title": "CHZ Extension",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
   },
   "background": {
-    "scripts": ["background.js"],
-    "persistent": false
+    "service_worker": "background.js"
   },
-  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "web_accessible_resources": [
-    "popup.js",
-    "background.js",
-    "style.css"
+    {
+      "resources": [
+        "popup.js",
+        "background.js",
+        "popup.css",
+        "icon.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
   ]
 }

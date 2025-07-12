@@ -26,6 +26,8 @@ interface UserTransaction {
 const PopupApp: React.FC = () => {
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isCheckingMetamask, setIsCheckingMetamask] = useState(true);
+  const [metamaskAvailable, setMetamaskAvailable] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     websocket: false,
     polling: false,
@@ -34,8 +36,11 @@ const PopupApp: React.FC = () => {
   const [userData, setUserData] = useState<UserData>({});
   const [recentTransactions, setRecentTransactions] = useState<UserTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
+    // Vérifier MetaMask au démarrage
+    checkMetamaskAvailability();
     // Charger l'adresse utilisateur au démarrage
     loadUserAddress();
     // Charger le statut de connexion
@@ -44,10 +49,59 @@ const PopupApp: React.FC = () => {
     setupMessageListener();
   }, []);
 
+  const checkMetamaskAvailability = async () => {
+    setIsCheckingMetamask(true);
+    setError(null);
+    
+    try {
+      console.log('Checking MetaMask availability...');
+      
+      // Faire un diagnostic immédiat
+      const diagnostics = MetamaskService.getDiagnostics();
+      console.log('MetaMask diagnostics:', diagnostics);
+      
+      // Vérifier avec la méthode améliorée
+      const available = await MetamaskService.isMetamaskInstalled();
+      console.log('MetaMask available:', available);
+      
+      setMetamaskAvailable(available);
+      
+      if (!available) {
+        setError('MetaMask n\'est pas installé ou n\'est pas disponible. Veuillez l\'installer ou redémarrer Chrome.');
+      } else {
+        // Vérifier si MetaMask est débloqué
+        const isUnlocked = await MetamaskService.isMetamaskUnlocked();
+        console.log('MetaMask unlocked:', isUnlocked);
+        
+        if (!isUnlocked) {
+          setError('MetaMask est installé mais verrouillé. Veuillez le déverrouiller.');
+        } else {
+          setError(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking MetaMask:', error);
+      setMetamaskAvailable(false);
+      setError('Erreur lors de la vérification de MetaMask: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
+    } finally {
+      setIsCheckingMetamask(false);
+    }
+  };
+
   const loadUserAddress = async () => {
     try {
       const address = await StorageService.getUserAddress();
       setUserAddress(address);
+      
+      // Si on a une adresse, vérifier si MetaMask est toujours connecté
+      if (address) {
+        const isConnected = await MetamaskService.isConnected();
+        if (!isConnected) {
+          // L'utilisateur a déconnecté MetaMask, nettoyer les données
+          await StorageService.clearUserAddress();
+          setUserAddress(null);
+        }
+      }
     } catch (error) {
       console.error('Error loading user address:', error);
     }
@@ -57,7 +111,7 @@ const PopupApp: React.FC = () => {
     try {
       const status = await new Promise<ConnectionStatus>((resolve) => {
         chrome.runtime.sendMessage({ action: 'get_status' }, (response) => {
-          resolve(response);
+          resolve(response || { websocket: false, polling: false, monitoring: false });
         });
       });
       setConnectionStatus(status);
@@ -88,9 +142,19 @@ const PopupApp: React.FC = () => {
     setError(null);
 
     try {
+      console.log('Attempting to connect to MetaMask...');
+      
+      // Vérifier à nouveau que MetaMask est disponible
+      const available = await MetamaskService.isMetamaskInstalled();
+      if (!available) {
+        throw new Error('MetaMask n\'est pas disponible. Veuillez l\'installer et redémarrer Chrome.');
+      }
+
       const address = await MetamaskService.connectWallet();
       await StorageService.setUserAddress(address);
       setUserAddress(address);
+      
+      console.log('MetaMask connected successfully:', address);
       
       // Démarrer les services en arrière-plan
       chrome.runtime.sendMessage({ action: 'connect_websocket' });
@@ -111,6 +175,7 @@ const PopupApp: React.FC = () => {
 
   const handleDisconnect = async () => {
     try {
+      await MetamaskService.disconnect();
       await StorageService.clearUserAddress();
       setUserAddress(null);
       setUserData({});
@@ -124,6 +189,14 @@ const PopupApp: React.FC = () => {
     } catch (error) {
       console.error('Error disconnecting:', error);
     }
+  };
+
+  const handleRetryMetamask = () => {
+    checkMetamaskAvailability();
+  };
+
+  const handleShowDiagnostics = () => {
+    setShowDiagnostics(!showDiagnostics);
   };
 
   const toggleWebSocket = () => {
@@ -156,6 +229,98 @@ const PopupApp: React.FC = () => {
     chrome.tabs.create({ url: `https://testnet.chiliscan.com/tx/${hash}` });
   };
 
+  const openMetamaskInstall = () => {
+    chrome.tabs.create({ url: 'https://metamask.io/' });
+  };
+
+  const renderDiagnostics = () => {
+    if (!showDiagnostics) return null;
+    
+    const diagnostics = MetamaskService.getDiagnostics();
+    
+    return (
+      <div className="diagnostics-section">
+        <h3>🔍 Diagnostics MetaMask</h3>
+        <div className="diagnostics-info">
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">window.ethereum:</span>
+            <span className={`diagnostic-value ${diagnostics.windowEthereum ? 'success' : 'error'}`}>
+              {diagnostics.windowEthereum ? '✅ Présent' : '❌ Absent'}
+            </span>
+          </div>
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">isMetaMask:</span>
+            <span className={`diagnostic-value ${diagnostics.isMetaMask ? 'success' : 'error'}`}>
+              {diagnostics.isMetaMask ? '✅ Oui' : '❌ Non'}
+            </span>
+          </div>
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">request method:</span>
+            <span className={`diagnostic-value ${diagnostics.hasRequest ? 'success' : 'error'}`}>
+              {diagnostics.hasRequest ? '✅ Disponible' : '❌ Manquante'}
+            </span>
+          </div>
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">Extension context:</span>
+            <span className={`diagnostic-value ${diagnostics.chromeExtensionInfo.isExtensionContext ? 'success' : 'warning'}`}>
+              {diagnostics.chromeExtensionInfo.isExtensionContext ? '✅ Oui' : '⚠️ Non'}
+            </span>
+          </div>
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">Mode développeur:</span>
+            <span className={`diagnostic-value ${diagnostics.chromeExtensionInfo.isDeveloperMode ? 'warning' : 'success'}`}>
+              {diagnostics.chromeExtensionInfo.isDeveloperMode ? '⚠️ ACTIF' : '✅ Désactivé'}
+            </span>
+          </div>
+          {diagnostics.hasMultipleProviders && (
+            <div className="diagnostic-item">
+              <span className="diagnostic-label">Providers multiples:</span>
+              <span className="diagnostic-value warning">
+                ⚠️ Oui
+              </span>
+            </div>
+          )}
+          {(diagnostics.otherWallets.isCoinbaseWallet || diagnostics.otherWallets.isRabby || diagnostics.otherWallets.isTrust) && (
+            <div className="diagnostic-item">
+              <span className="diagnostic-label">Autres wallets:</span>
+              <span className="diagnostic-value warning">
+                {diagnostics.otherWallets.isCoinbaseWallet && '🔸 Coinbase '}
+                {diagnostics.otherWallets.isRabby && '🔸 Rabby '}
+                {diagnostics.otherWallets.isTrust && '🔸 Trust '}
+              </span>
+            </div>
+          )}
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">Document ready:</span>
+            <span className={`diagnostic-value ${diagnostics.timing.documentReadyState === 'complete' ? 'success' : 'warning'}`}>
+              {diagnostics.timing.documentReadyState === 'complete' ? '✅ Complet' : '⚠️ En cours'}
+            </span>
+          </div>
+          <div className="diagnostic-item">
+            <span className="diagnostic-label">Contexte sécurisé:</span>
+            <span className={`diagnostic-value ${diagnostics.isSecureContext ? 'success' : 'warning'}`}>
+              {diagnostics.isSecureContext ? '✅ Oui' : '⚠️ Non'}
+            </span>
+          </div>
+        </div>
+        
+        {diagnostics.chromeExtensionInfo.isDeveloperMode && (
+          <div className="diagnostic-warning">
+            <h4>⚠️ Mode développeur détecté</h4>
+            <p>Le mode développeur peut causer des problèmes de détection MetaMask. Essayez de le désactiver temporairement.</p>
+          </div>
+        )}
+        
+        {diagnostics.hasMultipleProviders && (
+          <div className="diagnostic-warning">
+            <h4>⚠️ Plusieurs providers détectés</h4>
+            <p>Plusieurs wallets sont installés. Cela peut causer des conflits avec MetaMask.</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="popup-container">
       <header className="popup-header">
@@ -164,7 +329,53 @@ const PopupApp: React.FC = () => {
       </header>
 
       <main className="popup-main">
-        {!userAddress ? (
+        {isCheckingMetamask ? (
+          <div className="checking-section">
+            <div className="loading-message">
+              <h2>Vérification de MetaMask...</h2>
+              <div className="loading-spinner">🔄</div>
+            </div>
+          </div>
+        ) : !metamaskAvailable ? (
+          <div className="metamask-error-section">
+            <div className="error-message-detailed">
+              <h2>❌ MetaMask non détecté</h2>
+              <p>MetaMask n'est pas installé ou n'est pas disponible.</p>
+              <div className="error-actions">
+                <button 
+                  className="install-button"
+                  onClick={openMetamaskInstall}
+                >
+                  Installer MetaMask
+                </button>
+                <button 
+                  className="retry-button"
+                  onClick={handleRetryMetamask}
+                >
+                  Réessayer
+                </button>
+              </div>
+              <div className="error-actions">
+                <button 
+                  className="diagnostics-button"
+                  onClick={handleShowDiagnostics}
+                >
+                  {showDiagnostics ? 'Masquer' : 'Voir'} diagnostics
+                </button>
+              </div>
+              {renderDiagnostics()}
+              <div className="help-text">
+                <small>
+                  Si MetaMask est installé, essayez de:<br/>
+                  • Redémarrer Chrome<br/>
+                  • Activer MetaMask dans les extensions<br/>
+                  • Déverrouiller MetaMask<br/>
+                  • Cliquer sur "Réessayer"
+                </small>
+              </div>
+            </div>
+          </div>
+        ) : !userAddress ? (
           <div className="connection-section">
             <div className="welcome-message">
               <h2>Bienvenue sur Chiliz Chain 2.0!</h2>
