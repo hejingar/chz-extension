@@ -2,18 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useWallet } from '../context/WalletProvider';
 import './RoundUpSettings.css';
 
-const RoundUpSettings = () => {
-    const { 
-        roundUpSettings, 
-        updateRoundUpSettings, 
-        isRoundUpActive, 
-        totalSaved,
-        isAuthenticated 
-    } = useWallet();
-    
+const AutoSaveSettings = () => {
+    const { roundUpSettings, updateRoundUpSettings, isRoundUpActive, totalSaved } = useWallet();
     const [localSettings, setLocalSettings] = useState(roundUpSettings);
     const [isSaving, setIsSaving] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
 
     useEffect(() => {
         setLocalSettings(roundUpSettings);
@@ -27,43 +19,26 @@ const RoundUpSettings = () => {
     };
 
     const handleSaveSettings = async () => {
-        if (!isAuthenticated) {
-            alert('Please connect your wallet first');
-            return;
-        }
-
         setIsSaving(true);
         try {
             await updateRoundUpSettings(localSettings);
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 2000);
+            console.log('✅ Auto-save settings saved successfully');
         } catch (error) {
-            console.error('❌ Failed to save settings:', error);
+            console.error('❌ Failed to save auto-save settings:', error);
             alert('Failed to save settings. Please try again.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (!isAuthenticated) {
-        return (
-            <div className="roundup-settings">
-                <div className="settings-header">
-                    <h3>💰 Round-Up Savings</h3>
-                    <p className="settings-description">
-                        Connect your wallet to enable round-up savings
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(roundUpSettings);
 
     return (
         <div className="roundup-settings">
             <div className="settings-header">
-                <h3>💰 Round-Up Savings</h3>
+                <h3>💰 Auto-Save CHZ</h3>
                 <p className="settings-description">
-                    Automatically save CHZ by rounding up your transactions
+                    Automatically save a fixed amount of CHZ with every transaction
                 </p>
             </div>
 
@@ -74,7 +49,7 @@ const RoundUpSettings = () => {
                 </div>
                 <div className="savings-status">
                     {isRoundUpActive ? (
-                        <span className="status-active">🔄 Processing round-up...</span>
+                        <span className="status-active">🔄 Processing auto-save...</span>
                     ) : (
                         <span className="status-ready">✅ Ready</span>
                     )}
@@ -90,10 +65,10 @@ const RoundUpSettings = () => {
                             onChange={(e) => handleSettingChange('enabled', e.target.checked)}
                         />
                         <span className="checkbox-custom"></span>
-                        Enable Round-Up Savings
+                        Enable Auto-Save
                     </label>
                     <p className="setting-description">
-                        Automatically round up your transactions and save the difference
+                        Automatically save CHZ with every transaction you make
                     </p>
                 </div>
 
@@ -101,76 +76,88 @@ const RoundUpSettings = () => {
                     <>
                         <div className="setting-group">
                             <label className="setting-label">
-                                Round up to nearest:
+                                Fixed amount to save per transaction:
                             </label>
                             <select
-                                value={localSettings.roundUpTo}
-                                onChange={(e) => handleSettingChange('roundUpTo', parseInt(e.target.value))}
+                                value={localSettings.fixedAmount}
+                                onChange={(e) => handleSettingChange('fixedAmount', parseFloat(e.target.value))}
                                 className="setting-select"
                             >
+                                <option value={0.5}>0.5 CHZ</option>
                                 <option value={1}>1 CHZ</option>
+                                <option value={2}>2 CHZ</option>
                                 <option value={5}>5 CHZ</option>
                                 <option value={10}>10 CHZ</option>
-                                <option value={25}>25 CHZ</option>
+                                <option value={20}>20 CHZ</option>
                                 <option value={50}>50 CHZ</option>
-                                <option value={100}>100 CHZ</option>
                             </select>
                             <p className="setting-description">
-                                Choose how much to round up your transactions
+                                This exact amount will be saved with every transaction
                             </p>
                         </div>
 
                         <div className="setting-group">
                             <label className="setting-label">
-                                Maximum round-up per transaction:
+                                Maximum to save per day:
                             </label>
                             <select
-                                value={localSettings.maxPerTransaction}
-                                onChange={(e) => handleSettingChange('maxPerTransaction', parseInt(e.target.value))}
+                                value={localSettings.maxPerDay}
+                                onChange={(e) => handleSettingChange('maxPerDay', parseInt(e.target.value))}
                                 className="setting-select"
                             >
-                                <option value={5}>5 CHZ</option>
                                 <option value={10}>10 CHZ</option>
                                 <option value={25}>25 CHZ</option>
                                 <option value={50}>50 CHZ</option>
                                 <option value={100}>100 CHZ</option>
+                                <option value={200}>200 CHZ</option>
+                                <option value={500}>500 CHZ</option>
                             </select>
                             <p className="setting-description">
-                                Set a limit on how much can be saved per transaction
+                                Daily limit to prevent excessive savings
                             </p>
                         </div>
 
                         <div className="example-calculation">
-                            <h4>💡 Example:</h4>
+                            <h4>💡 How it works:</h4>
                             <p>
-                                If you send <strong>7.3 CHZ</strong> and round up to <strong>{localSettings.roundUpTo} CHZ</strong>, 
-                                you'll save <strong>
-                                    {Math.min(
-                                        Math.ceil(7.3 / localSettings.roundUpTo) * localSettings.roundUpTo - 7.3,
-                                        localSettings.maxPerTransaction
-                                    ).toFixed(1)} CHZ
-                                </strong> automatically.
+                                <strong>Every time you make a transaction:</strong><br/>
+                                → You get a second MetaMask popup<br/>
+                                → It asks you to sign a <strong>{localSettings.fixedAmount} CHZ</strong> transfer<br/>
+                                → This amount goes to your savings account<br/>
+                                → Works regardless of your original transaction amount
                             </p>
+                            <div className="example-scenarios">
+                                <div className="scenario">
+                                    <span className="scenario-label">Example 1:</span>
+                                    <span className="scenario-text">Send 0.0001 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                </div>
+                                <div className="scenario">
+                                    <span className="scenario-label">Example 2:</span>
+                                    <span className="scenario-text">Send 100 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                </div>
+                                <div className="scenario">
+                                    <span className="scenario-label">Example 3:</span>
+                                    <span className="scenario-text">Send 0.01 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}
 
-                <div className="settings-actions">
-                    <button
-                        onClick={handleSaveSettings}
-                        disabled={isSaving}
-                        className={`save-button ${isSaving ? 'saving' : ''}`}
-                    >
-                        {isSaving ? '💾 Saving...' : '💾 Save Settings'}
-                    </button>
-                    
-                    {showSuccess && (
-                        <span className="success-message">✅ Settings saved!</span>
-                    )}
-                </div>
+                {hasChanges && (
+                    <div className="settings-actions">
+                        <button 
+                            onClick={handleSaveSettings}
+                            disabled={isSaving}
+                            className="save-settings-btn"
+                        >
+                            {isSaving ? '⏳ Saving...' : '💾 Save Settings'}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-export default RoundUpSettings; 
+export default AutoSaveSettings; 

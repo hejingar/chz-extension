@@ -29,8 +29,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "popup.js",
-        "background.js",
+    "popup.js",
+    "background.js",
         "popup.css",
         "icon.png"
       ],

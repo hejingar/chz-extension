@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHZ Auto-Save Confirmation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            width: 320px;
+            height: auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .confirmation-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .confirmation-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .confirmation-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .confirmation-body p {
+            margin: 10px 0;
+            font-size: 1em;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        .amount-highlight {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tx-details {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+            color: #666;
+        }
+
+        .tx-details small {
+            font-size: 0.85em;
+        }
+
+        .confirmation-actions {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px 20px;
+        }
+
+        .confirmation-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .confirmation-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .confirmation-btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .confirmation-btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .confirmation-btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e9ecef;
+        }
+
+        .confirmation-btn-secondary:hover:not(:disabled) {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            pointer-events: none;
+        }
+
+        .loading .confirmation-btn {
+            opacity: 0.7;
+        }
+
+        .confirmation-emoji {
+            font-size: 1.2em;
+            margin-right: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="confirmation-header">
+        <h3><span class="confirmation-emoji">💰</span>Auto-Save Available</h3>
+    </div>
+    
+    <div class="confirmation-body">
+        <p><span class="confirmation-emoji">🎉</span><strong>Transaction detected!</strong></p>
+        <p>Would you like to save <span class="amount-highlight" id="amount">5 CHZ</span> to your account?</p>
+        <p class="tx-details" id="tx-details" style="display: none;">
+            <small>Original transaction: <span id="original-tx"></span></small>
+        </p>
+    </div>
+    
+    <div class="confirmation-actions">
+        <button 
+            id="decline-btn"
+            class="confirmation-btn confirmation-btn-secondary"
+        >
+            <span class="confirmation-emoji">❌</span>No, thanks
+        </button>
+        <button 
+            id="confirm-btn"
+            class="confirmation-btn confirmation-btn-primary"
+        >
+            <span class="confirmation-emoji">✅</span>Yes, save it!
+        </button>
+    </div>
+
+    <script>
+        // Global variables
+        let pendingRoundUp = null;
+        let isProcessing = false;
+
+        // Initialize the confirmation popup
+        async function initConfirmation() {
+            try {
+                // Get pending round-up request from background
+                const response = await sendToBackground({
+                    action: 'GET_PENDING_ROUNDUP'
+                });
+                
+                if (response.success && response.data) {
+                    pendingRoundUp = response.data;
+                    updateUI();
+                } else {
+                    // No pending request, close popup
+                    window.close();
+                }
+            } catch (error) {
+                console.error('❌ Failed to initialize confirmation:', error);
+                window.close();
+            }
+        }
+
+        // Update UI with pending request data
+        function updateUI() {
+            if (!pendingRoundUp) return;
+
+            const amountElement = document.getElementById('amount');
+            const txDetailsElement = document.getElementById('tx-details');
+            const originalTxElement = document.getElementById('original-tx');
+
+            amountElement.textContent = `${pendingRoundUp.amount} CHZ`;
+
+            if (pendingRoundUp.originalTxHash) {
+                originalTxElement.textContent = `${pendingRoundUp.originalTxHash.substring(0, 10)}...`;
+                txDetailsElement.style.display = 'block';
+            }
+        }
+
+        // Handle confirm button click
+        async function handleConfirm() {
+            if (!pendingRoundUp || isProcessing) return;
+
+            isProcessing = true;
+            setLoadingState(true);
+
+            try {
+                // Notify background that user confirmed
+                await sendToBackground({
+                    action: 'CONFIRM_ROUNDUP',
+                    userAddress: pendingRoundUp.userAddress,
+                    amount: pendingRoundUp.amount
+                });
+
+                // Send message to main extension to execute the transaction
+                chrome.runtime.sendMessage({
+                    action: 'EXECUTE_ROUNDUP_TRANSACTION',
+                    amount: pendingRoundUp.amount
+                });
+
+                // Close popup after a brief delay
+                setTimeout(() => {
+                    window.close();
+                }, 500);
+
+            } catch (error) {
+                console.error('❌ Failed to confirm round-up:', error);
+                alert('Failed to process round-up: ' + error.message);
+                setLoadingState(false);
+                isProcessing = false;
+            }
+        }
+
+        // Handle decline button click
+        async function handleDecline() {
+            if (isProcessing) return;
+
+            try {
+                // Notify background that user declined
+                await sendToBackground({
+                    action: 'DECLINE_ROUNDUP'
+                });
+
+                // Close popup
+                window.close();
+
+            } catch (error) {
+                console.error('❌ Failed to decline round-up:', error);
+                window.close();
+            }
+        }
+
+        // Set loading state
+        function setLoadingState(loading) {
+            const body = document.body;
+            const confirmBtn = document.getElementById('confirm-btn');
+            const declineBtn = document.getElementById('decline-btn');
+
+            if (loading) {
+                body.classList.add('loading');
+                confirmBtn.innerHTML = '<span class="confirmation-emoji">🔄</span>Saving...';
+                confirmBtn.disabled = true;
+                declineBtn.disabled = true;
+            } else {
+                body.classList.remove('loading');
+                confirmBtn.innerHTML = '<span class="confirmation-emoji">✅</span>Yes, save it!';
+                confirmBtn.disabled = false;
+                declineBtn.disabled = false;
+            }
+        }
+
+        // Send message to background script
+        function sendToBackground(message) {
+            return new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage(message, (response) => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
+        }
+
+        // Event listeners
+        document.getElementById('confirm-btn').addEventListener('click', handleConfirm);
+        document.getElementById('decline-btn').addEventListener('click', handleDecline);
+
+        // Initialize when popup opens
+        document.addEventListener('DOMContentLoaded', initConfirmation);
+    </script>
+</body>
+</html> 
