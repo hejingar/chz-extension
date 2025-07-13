@@ -1,3 +1,4 @@
+/*global chrome*/
 import React from 'react';
 import createMetaMaskProvider from 'metamask-extension-provider';
 import Web3 from 'web3';
@@ -450,21 +451,49 @@ const WalletProvider = React.memo(({ children }) => {
     };
 
     const loadTotalSaved = async () => {
+        if (!web3 || !account) {
+            console.warn('Cannot load total saved: wallet not connected');
+            return;
+        }
+
         try {
-            const saved = await storage.get('totalSaved');
-            if (saved && typeof saved === 'number') {
-                setTotalSaved(saved);
-            }
+            // Create contract instance
+            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
+            
+            // Call getAmountDeposit view function
+            const amountInWei = await contract.methods.getAmountDeposit(account).call();
+            
+            // Convert from Wei to CHZ
+            const amountInCHZ = parseFloat(web3.utils.fromWei(amountInWei, 'ether'));
+            
+            setTotalSaved(amountInCHZ);
+            
+            console.log(`Total saved loaded from contract: ${amountInCHZ} CHZ`);
         } catch (error) {
-            console.error('Failed to load total saved:', error);
+            console.error('Failed to load total saved from contract:', error);
+            // Fallback to local storage if contract call fails
+            try {
+                const saved = await storage.get('totalSaved');
+                if (saved && typeof saved === 'number') {
+                    setTotalSaved(saved);
+                }
+            } catch (storageError) {
+                console.error('Failed to load total saved from storage:', storageError);
+            }
         }
     };
 
     const updateTotalSaved = async (amount) => {
+        // This function is now mainly for UI updates
+        // The actual total will be refreshed from contract after transaction
         try {
             const newTotal = totalSaved + amount;
             setTotalSaved(newTotal);
-            await storage.set('totalSaved', newTotal);
+            
+            // Refresh from contract after a short delay to get accurate data
+            setTimeout(async () => {
+                await loadTotalSaved();
+            }, 3000);
         } catch (error) {
             console.error('Failed to update total saved:', error);
         }
@@ -711,6 +740,21 @@ const WalletProvider = React.memo(({ children }) => {
         }
     }, [isAuthenticated, account]);
 
+    // Load total saved when wallet connects and refresh periodically
+    React.useEffect(() => {
+        if (isAuthenticated && account && web3) {
+            // Load immediately when wallet connects
+            loadTotalSaved();
+            
+            // Set up interval to refresh total saved every 30 seconds
+            const interval = setInterval(() => {
+                loadTotalSaved();
+            }, 30000); // Refresh every 30 seconds
+            
+            return () => clearInterval(interval);
+        }
+    }, [isAuthenticated, account, web3]);
+
     // Listen for background messages
     React.useEffect(() => {
         const handleBackgroundMessage = (message, sender, sendResponse) => {
@@ -758,7 +802,8 @@ const WalletProvider = React.memo(({ children }) => {
         monitorTransaction,
         confirmRoundUp,
         declineRoundUp,
-        checkForPendingRoundUp
+        checkForPendingRoundUp,
+        loadTotalSaved // Export this so it can be called manually
     };
 
     return (
@@ -767,5 +812,7 @@ const WalletProvider = React.memo(({ children }) => {
         </WalletContext.Provider>
     );
 });
+
+WalletProvider.displayName = 'WalletProvider';
 
 export default WalletProvider; 
