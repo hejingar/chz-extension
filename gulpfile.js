@@ -9,7 +9,7 @@ const rename = require('gulp-rename');
 const fs = require('fs');
 
 var config = {
-  name: 'CHZ Extension',
+  name: 'GoodStake',
   root: 'dist',
   chromeRoot: 'dist-chrome',
   firefoxRoot: 'dist-firefox',

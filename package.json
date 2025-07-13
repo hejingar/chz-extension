@@ -2,7 +2,7 @@
   "name": "chz-extension",
   "version": "1.0.0",
   "private": true,
-  "description": "CHZ Auto-Save Chrome Extension for Chiliz blockchain",
+  "description": "GoodStake Chrome Extension for Chiliz blockchain",
   "dependencies": {
     "ethers": "^5.8.0",
     "metamask-extension-provider": "^3.0.0",

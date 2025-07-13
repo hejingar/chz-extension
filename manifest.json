@@ -1,11 +1,11 @@
 {
-  "name": "CHZ Auto-Save",
+  "name": "GoodStake",
   "description": "Automatically save CHZ tokens with every transaction. A smart savings extension for Chiliz blockchain.",
   "version": "1.0.0",
   "manifest_version": 3,
   "action": {
     "default_popup": "popup.html",
-    "default_title": "CHZ Auto-Save"
+    "default_title": "GoodStake"
   },
   "background": {
     "service_worker": "js/background.js"

@@ -215,7 +215,7 @@ class RoundUpService {
   }
 
   async processNewTransactions(userAddress, fromNonce, toNonce) {
-    // Get settings to see if auto-save is enabled
+    // Get settings to see if GoodStake is enabled
     const settings = await this.getRoundUpSettings();
     
     if (!settings.enabled) {
@@ -306,7 +306,7 @@ class RoundUpService {
         await chrome.notifications.create({
           type: 'basic',
           iconUrl: 'icon.svg',
-          title: 'CHZ Auto-Save Available',
+          title: 'Save up with GoodStake',
           message: `💰 Transaction detected! Click to save ${settings.fixedAmount} CHZ to your savings.`
         });
       } catch (notificationError) {
@@ -374,7 +374,7 @@ class RoundUpService {
         await chrome.notifications.create({
           type: 'basic',
           iconUrl: 'icon.svg',
-          title: 'CHZ Auto-Save Available',
+          title: 'Save up with GoodStake',
           message: `💰 Transaction detected! Click to save ${settings.fixedAmount} CHZ to your savings.`
         });
       } catch (notificationError) {

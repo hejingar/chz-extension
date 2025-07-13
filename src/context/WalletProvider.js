@@ -674,7 +674,7 @@ const WalletProvider = React.memo(({ children }) => {
             
             return txHash;
         } catch (error) {
-            console.error('Auto-save deposit to contract failed:', error);
+            console.error('Auto-Save deposit to contract failed:', error);
             
             // Provide more specific error messages
             if (error.message.includes('insufficient funds')) {
