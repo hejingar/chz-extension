@@ -18,7 +18,6 @@ function App() {
     // Wallet methods
     connectWallet,
     disconnectWallet,
-    sendTransaction,
     
     // Round-up state
     roundUpSettings,
@@ -36,9 +35,7 @@ function App() {
   // State for UI
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [testAmount, setTestAmount] = useState('0.1');
   const [testAddress, setTestAddress] = useState('');
-  const [transactionStatus, setTransactionStatus] = useState('');
 
   // Initialize test address with user's address
   useEffect(() => {
@@ -49,13 +46,11 @@ function App() {
 
   const handleConnectWallet = async () => {
     setIsConnecting(true);
-    setTransactionStatus('');
     
     try {
       await connectWallet();
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      setTransactionStatus('Failed to connect wallet: ' + error.message);
     } finally {
       setIsConnecting(false);
     }
@@ -64,38 +59,13 @@ function App() {
   const handleDisconnectWallet = async () => {
     try {
       await disconnectWallet();
-      setTransactionStatus('Wallet disconnected');
     } catch (error) {
       console.error('Failed to disconnect wallet:', error);
-      setTransactionStatus('Failed to disconnect wallet: ' + error.message);
-    }
-  };
-
-  const handleSendTestTransaction = async () => {
-    if (!testAddress || !testAmount) {
-      setTransactionStatus('Please enter both address and amount');
-      return;
-    }
-
-    try {
-      setTransactionStatus('Sending transaction...');
-      
-      const txHash = await sendTransaction(testAddress, testAmount);
-      setTransactionStatus('Transaction sent! Hash: ' + txHash);
-      
-      // Clear form
-      setTestAmount('0.1');
-      setTestAddress(account);
-      
-    } catch (error) {
-      console.error('Transaction failed:', error);
-      setTransactionStatus('Transaction failed: ' + error.message);
     }
   };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setTransactionStatus('');
   };
 
   const isCorrectNetwork = chainId === CHZ_SPICY_CHAIN_ID;
@@ -151,6 +121,12 @@ function App() {
           >
             Settings
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'about' ? 'active' : ''}`}
+            onClick={() => handleTabChange('about')}
+          >
+            About
+          </button>
         </nav>
 
         {/* Tab Content */}
@@ -183,6 +159,28 @@ function App() {
                   <div className="status-details">
                     <p>Amount per transaction: {roundUpSettings.fixedAmount} CHZ</p>
                     <p>Daily limit: {roundUpSettings.maxPerDay} CHZ</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PSG Foundation Impact */}
+              <div className="psg-foundation-info">
+                <div className="impact-card">
+                  <h3>🏆 Making a Difference</h3>
+                  <p>When you save CHZ with GoodStake, your tokens are staked to earn rewards. All staking rewards are donated to the <strong><a href="https://www.psg.fr/psg-for-communities/fondation" target="_blank" rel="noopener noreferrer" className="psg-link">PSG Foundation</a></strong>, which helps disadvantaged youth and sick children by financing education and sports programs.</p>
+                  <div className="impact-highlights">
+                    <div className="highlight">
+                      <span className="icon">🎓</span>
+                      <span>Education Programs</span>
+                    </div>
+                    <div className="highlight">
+                      <span className="icon">⚽</span>
+                      <span>Sports Programs</span>
+                    </div>
+                    <div className="highlight">
+                      <span className="icon">❤️</span>
+                      <span>Helping Children</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -298,6 +296,64 @@ function App() {
                   <p>Connect your wallet to setup GoodStake.</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* About Tab */}
+          {activeTab === 'about' && (
+            <div className="about-tab">
+              <div className="about-header">
+                <h2>About GoodStake</h2>
+                <p>Learn how GoodStake works and helps make a difference</p>
+              </div>
+
+              <div className="about-section">
+                <div className="feature-card">
+                  <h3>🔄 How It Works</h3>
+                  <p>When you make any transaction with your MetaMask wallet connected to GoodStake, you'll be prompted to save an amount of CHZ tokens by making a transaction to our smart contract, which will stake these tokens.</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>💰 Flexible Withdrawals</h3>
+                  <p>You can withdraw any amount of your saved tokens at any time, with a 3-day delay (imposed by the validators). You'll get back the original amount of saved tokens.</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>🎯 Your Impact</h3>
+                  <p>The rewards from staking your tokens are donated to the <a href="https://www.psg.fr/psg-for-communities/fondation" target="_blank" rel="noopener noreferrer" className="psg-link">PSG Foundation</a>, which helps disadvantaged youth and sick children by financing education and sports programs. Your savings make a real difference!</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>🔒 Security & Control</h3>
+                  <p>You maintain full control of your tokens. The staking is done on your behalf, and you can withdraw your original amount at any time. Only the staking rewards are donated to charity.</p>
+                </div>
+
+                {/* Technical Details Section */}
+                <div className="feature-card">
+                  <h3>🔐 Delegation Process</h3>
+                  <p>Since CHZ does not allow delegating tokens directly in smart contracts, you entrust us with the staking of your tokens. Your tokens go through the owner wallet of the smart contract before being directly staked to a Chiliz validator, and then withdrawn at your demand.</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>🗃️ Data Storage</h3>
+                  <p>All data is stored on-chain. We do not have a database or an API. This ensures transparency and decentralization - everything is verifiable on the blockchain.</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>⚡ Smart Contract</h3>
+                  <p>Our smart contract handles all the logic for deposits, withdrawals, and tracking your savings. The contract is transparent and auditable on the blockchain.</p>
+                </div>
+
+                <div className="feature-card">
+                  <h3>🔄 Staking Flow</h3>
+                  <div className="flow-steps">
+                    <div className="step">1. You deposit CHZ to our contract</div>
+                    <div className="step">2. Contract owner stakes tokens to validator</div>
+                    <div className="step">3. Staking rewards go to <a href="https://www.psg.fr/psg-for-communities/fondation" target="_blank" rel="noopener noreferrer" className="psg-link">PSG Foundation</a></div>
+                    <div className="step">4. You can withdraw original amount anytime</div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
