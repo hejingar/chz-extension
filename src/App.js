@@ -31,7 +31,18 @@ function App() {
     executeRoundUpDeposit,
     confirmRoundUp,
     declineRoundUp,
-    loadTotalSaved
+    loadTotalSaved,
+    
+    // Withdrawal state
+    pendingWithdrawal,
+    withdrawalCountdown,
+    isWithdrawing,
+    isClaiming,
+    
+    // Withdrawal methods
+    executeWithdrawal,
+    executeClaimWithdrawal,
+    cancelWithdrawal
   } = useWallet();
 
   // State for UI
@@ -43,6 +54,10 @@ function App() {
   const [depositAmount, setDepositAmount] = useState('');
   const [isDepositing, setIsDepositing] = useState(false);
   const [depositError, setDepositError] = useState('');
+
+  // State for withdrawal
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalError, setWithdrawalError] = useState('');
 
   // Initialize test address with user's address
   useEffect(() => {
@@ -110,6 +125,54 @@ function App() {
     } finally {
       setIsDepositing(false);
     }
+  };
+
+  const handleWithdrawal = async () => {
+    if (!withdrawalAmount || isNaN(withdrawalAmount) || parseFloat(withdrawalAmount) <= 0) {
+      setWithdrawalError('Please enter a valid withdrawal amount');
+      return;
+    }
+
+    const amount = parseFloat(withdrawalAmount);
+    
+    if (amount > totalSaved) {
+      setWithdrawalError(`Cannot withdraw ${amount} CHZ. You only have ${totalSaved} CHZ saved.`);
+      return;
+    }
+
+    try {
+      setWithdrawalError('');
+      await executeWithdrawal(amount);
+      setWithdrawalAmount('');
+      alert(`Withdrawal request successful! You can claim your ${amount} CHZ in 1 hour.`);
+    } catch (error) {
+      console.error('Withdrawal failed:', error);
+      setWithdrawalError(error.message || 'Withdrawal failed. Please try again.');
+    }
+  };
+
+  const handleClaimWithdrawal = async () => {
+    try {
+      setWithdrawalError('');
+      await executeClaimWithdrawal();
+      alert(`Withdrawal claimed successfully! Your CHZ has been transferred to your wallet.`);
+    } catch (error) {
+      console.error('Claim failed:', error);
+      setWithdrawalError(error.message || 'Claim failed. Please try again.');
+    }
+  };
+
+  const handleCancelWithdrawal = async () => {
+    const confirm = window.confirm('Are you sure you want to cancel your withdrawal request?');
+    if (confirm) {
+      await cancelWithdrawal();
+    }
+  };
+
+  const formatCountdown = (countdown) => {
+    if (!countdown) return '';
+    const { hours, minutes, seconds } = countdown;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const isCorrectNetwork = chainId === CHZ_SPICY_CHAIN_ID;
@@ -243,6 +306,117 @@ function App() {
                         {isDepositing ? 'Processing...' : 'Deposit CHZ'}
                       </button>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Withdrawal Section */}
+              {isAuthenticated && isCorrectNetwork && (
+                <div className="withdrawal-section">
+                  <div className="withdrawal-card">
+                    <h3>�� Withdraw CHZ</h3>
+                    <p>Withdraw your saved CHZ back to your wallet</p>
+                    
+                    {!pendingWithdrawal ? (
+                      <div className="withdrawal-form">
+                        <div className="input-group">
+                          <input
+                            type="number"
+                            placeholder="Enter CHZ amount to withdraw"
+                            value={withdrawalAmount}
+                            onChange={(e) => setWithdrawalAmount(e.target.value)}
+                            min="0.01"
+                            step="0.01"
+                            max={totalSaved}
+                            disabled={isWithdrawing}
+                            className="withdrawal-input"
+                          />
+                          <span className="input-suffix">CHZ</span>
+                        </div>
+                        
+                        <div className="available-balance">
+                          Available to withdraw: {totalSaved} CHZ
+                        </div>
+                        
+                        {withdrawalError && (
+                          <div className="error-message">
+                            {withdrawalError}
+                          </div>
+                        )}
+                        
+                        <button 
+                          className="btn btn-secondary withdrawal-btn"
+                          onClick={handleWithdrawal}
+                          disabled={isWithdrawing || !withdrawalAmount || isNaN(withdrawalAmount) || parseFloat(withdrawalAmount) <= 0 || parseFloat(withdrawalAmount) > totalSaved}
+                        >
+                          {isWithdrawing ? 'Processing...' : 'Request Withdrawal'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="withdrawal-status">
+                        {pendingWithdrawal.status === 'pending' && (
+                          <div className="pending-withdrawal">
+                            <div className="status-header">
+                              <span className="status-icon">⏳</span>
+                              <h4>Withdrawal Pending</h4>
+                            </div>
+                            <div className="withdrawal-details">
+                              <div className="detail-row">
+                                <span>Amount:</span>
+                                <span>{pendingWithdrawal.amount} CHZ</span>
+                              </div>
+                              <div className="detail-row">
+                                <span>Time remaining:</span>
+                                <span className="countdown">{formatCountdown(withdrawalCountdown)}</span>
+                              </div>
+                            </div>
+                            <div className="withdrawal-info">
+                              <p>⏰ Your withdrawal will be ready to claim in <strong>{formatCountdown(withdrawalCountdown)}</strong></p>
+                              <p>💡 The 1-hour waiting period is a security measure to protect your funds.</p>
+                            </div>
+                            <button 
+                              className="btn btn-outline cancel-btn"
+                              onClick={handleCancelWithdrawal}
+                            >
+                              Cancel Withdrawal
+                            </button>
+                          </div>
+                        )}
+                        
+                        {pendingWithdrawal.status === 'ready' && (
+                          <div className="ready-withdrawal">
+                            <div className="status-header">
+                              <span className="status-icon">✅</span>
+                              <h4>Ready to Claim</h4>
+                            </div>
+                            <div className="withdrawal-details">
+                              <div className="detail-row">
+                                <span>Amount:</span>
+                                <span>{pendingWithdrawal.amount} CHZ</span>
+                              </div>
+                            </div>
+                            <div className="withdrawal-info">
+                              <p>🎉 Your withdrawal is ready! Click below to claim your CHZ.</p>
+                            </div>
+                            <div className="withdrawal-actions">
+                              <button 
+                                className="btn btn-primary claim-btn"
+                                onClick={handleClaimWithdrawal}
+                                disabled={isClaiming}
+                              >
+                                {isClaiming ? 'Claiming...' : `Claim ${pendingWithdrawal.amount} CHZ`}
+                              </button>
+                              <button 
+                                className="btn btn-outline cancel-btn"
+                                onClick={handleCancelWithdrawal}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -500,4 +674,4 @@ function AppWrapper() {
   );
 }
 
-export default AppWrapper; 
+export default AppWrapper;

@@ -6,7 +6,6 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
-/* Header */
 .App-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
@@ -71,14 +70,12 @@
   border-radius: 4px;
 }
 
-/* Main Content */
 .App-main {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
 }
 
-/* Tab Navigation */
 .tab-navigation {
   display: flex;
   gap: 2px;
@@ -117,13 +114,11 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-/* Tab Content */
 .tab-content {
   max-width: 100%;
   margin: 0 auto;
 }
 
-/* Dashboard Tab */
 .dashboard-tab, .wallet-tab, .settings-tab {
   text-align: left;
 }
@@ -264,7 +259,6 @@
   font-size: 1em;
 }
 
-/* Wallet Tab */
 .wallet-section, .network-section, .test-transaction, .testnet-helper {
   background: white;
   border-radius: 16px;
@@ -369,7 +363,6 @@
   border: 1px solid #e9ecef;
 }
 
-/* Settings Tab */
 .settings-section {
   background: white;
   border-radius: 16px;
@@ -386,7 +379,6 @@
   font-style: italic;
 }
 
-/* Buttons */
 .btn {
   padding: 12px 24px;
   border: none;
@@ -426,7 +418,6 @@
   transform: translateY(-2px);
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -519,7 +510,6 @@
   flex: 1;
 }
 
-/* PSG Foundation Info */
 .psg-foundation-info {
   margin: 20px 0;
 }
@@ -567,7 +557,6 @@
   font-size: 1.1em;
 }
 
-/* About Tab */
 .about-tab, .technical-tab {
   padding: 20px 0;
 }
@@ -628,7 +617,6 @@
   font-size: 0.95em;
 }
 
-/* Technical Flow Steps */
 .flow-steps {
   margin-top: 12px;
 }
@@ -643,7 +631,6 @@
   color: #555;
 }
 
-/* PSG Foundation Link Styling */
 .psg-link {
   color: #fff !important;
   text-decoration: underline;
@@ -657,7 +644,6 @@
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
-/* For links in feature cards (non-impact cards) */
 .feature-card .psg-link, .tech-card .psg-link, .step .psg-link {
   color: #667eea !important;
   text-decoration: underline;
@@ -669,7 +655,6 @@
   text-decoration-color: #667eea;
 }
 
-/* Animations */
 @keyframes pulse {
   0% {
     opacity: 1;
@@ -702,7 +687,6 @@
   }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .App {
     min-width: 320px;
@@ -791,7 +775,6 @@
   }
 }
 
-/* Manual Deposit Section */
 .manual-deposit-section {
   margin: 20px 0;
 }
@@ -915,7 +898,6 @@
   border-left: 4px solid #F44336;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .deposit-card {
     padding: 16px;
@@ -929,5 +911,294 @@
   .quick-label {
     margin-right: 0;
     margin-bottom: 8px;
+  }
+}
+
+/* Withdrawal Section Styles */
+.withdrawal-section {
+  margin: 20px 0;
+}
+
+.withdrawal-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.withdrawal-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1.2em;
+}
+
+.withdrawal-card p {
+  margin: 0 0 20px 0;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.withdrawal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.withdrawal-input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.withdrawal-input:focus {
+  outline: none;
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.1);
+}
+
+.withdrawal-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.available-balance {
+  font-size: 0.9em;
+  color: #666;
+  text-align: right;
+  margin-top: -10px;
+}
+
+.withdrawal-btn {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.withdrawal-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+}
+
+.withdrawal-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.withdrawal-status {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pending-withdrawal, .ready-withdrawal {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  border: 2px solid #e9ecef;
+}
+
+.ready-withdrawal {
+  border-color: #4caf50;
+  background: #f1f8e9;
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.status-icon {
+  font-size: 1.5em;
+}
+
+.status-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1em;
+}
+
+.withdrawal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row span:first-child {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.detail-row span:last-child {
+  color: #333;
+  font-weight: 500;
+}
+
+.countdown {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1em;
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+.withdrawal-info {
+  background: rgba(255, 107, 53, 0.1);
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.ready-withdrawal .withdrawal-info {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.withdrawal-info p {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.withdrawal-info p:last-child {
+  margin-bottom: 0;
+}
+
+.withdrawal-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.claim-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 150px;
+}
+
+.claim-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.claim-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: #666;
+  border: 2px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.cancel-btn:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #666;
+  border: 2px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+/* Animation for countdown timer */
+@keyframes countdown-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.countdown {
+  animation: countdown-pulse 1s ease-in-out infinite;
+}
+
+/* Responsive styles for withdrawal section */
+@media (max-width: 768px) {
+  .withdrawal-card {
+    padding: 15px;
+  }
+  
+  .withdrawal-actions {
+    flex-direction: column;
+  }
+  
+  .claim-btn, .cancel-btn {
+    min-width: auto;
+    flex: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .status-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+  
+  .withdrawal-info {
+    padding: 12px;
   }
 }
