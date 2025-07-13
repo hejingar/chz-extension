@@ -65,7 +65,7 @@ const AutoSaveSettings = () => {
                             onChange={(e) => handleSettingChange('enabled', e.target.checked)}
                         />
                         <span className="checkbox-custom"></span>
-                        Enable GoodStake
+                        Enable Auto-Save
                     </label>
                     <p className="setting-description">
                         Automatically save CHZ with every transaction you make

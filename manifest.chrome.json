@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "CHZ Extension",
+  "name": "GoodStake",
   "version": "1.0.0",
   "description": "Extension Chrome pour CHZ avec connexion Metamask",
   "permissions": [
@@ -18,7 +18,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "CHZ Extension",
+    "default_title": "GoodStake",
     "default_icon": {
       "16": "icon.svg",
       "48": "icon.svg",

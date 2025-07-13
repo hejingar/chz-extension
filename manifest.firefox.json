@@ -1,11 +1,11 @@
 {
-  "name": "CHZ Extension",
+  "name": "GoodStake",
   "description": "A Chrome extension for Chiliz blockchain interactions",
   "version": "1.0.0",
   "manifest_version": 2,
   "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Open CHZ Extension",
+    "default_title": "Open GoodStake",
     "default_icon": {
       "16": "icon.svg",
       "48": "icon.svg",
