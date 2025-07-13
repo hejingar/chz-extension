@@ -20,7 +20,7 @@ export const NETWORK = {
 // Smart Contract Configuration
 export const SMART_CONTRACT = {
   SAVINGS: {
-    ADDRESS: '0xc3becbfc92ea5cb694db591823f3754255c3fbb7',
+    ADDRESS: '0x73537cec4fc5f417936ec03f6d2b282e3d27654b',
     ABI: [
 			{
 				"inputs": [],
