@@ -5,258 +5,11 @@ import Web3 from 'web3';
 import { getNormalizeAddress } from '../utils';
 import { EthereumEvents } from '../utils/events';
 import storage from '../utils/storage';
+import { SMART_CONTRACT, ROUNDUP_DEFAULTS, ERROR_MESSAGES } from '../constants.js';
 
-// Smart contract configuration
-const SAVINGS_CONTRACT_ADDRESS = '0x4b35a9bfd36c7e47ecefb5697157eb8a24902ef0';
-const SAVINGS_CONTRACT_ABI = [
-    {
-      "inputs": [],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "DepositReceived",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "WithdrawalRequested",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "amountDeposit",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "claimWithdrawal",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "contractBalance",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "deposit",
-      "outputs": [],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "adr",
-          "type": "address"
-        }
-      ],
-      "name": "getAmountDeposit",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getAvailableBalance",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "adr",
-          "type": "address"
-        }
-      ],
-      "name": "getPendingWithdrawAmount",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "adr",
-          "type": "address"
-        }
-      ],
-      "name": "getTimeToClaim",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "pendingWithdrawals",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "requestWithdrawal",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "timeAtWithdraw",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "totalPendingWithdrawals",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "withdrawToStake",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "stateMutability": "payable",
-      "type": "receive"
-    }
-];
+// Use smart contract configuration from constants
+const SAVINGS_CONTRACT_ADDRESS = SMART_CONTRACT.SAVINGS.ADDRESS;
+const SAVINGS_CONTRACT_ABI = SMART_CONTRACT.SAVINGS.ABI;
 
 export const WalletContext = React.createContext();
 export const useWallet = () => React.useContext(WalletContext);
@@ -277,9 +30,9 @@ const WalletProvider = React.memo(({ children }) => {
     const [web3, setWeb3] = React.useState(null);
     const [provider, setProvider] = React.useState(null);
     const [roundUpSettings, setRoundUpSettings] = React.useState({
-        enabled: false,
-        fixedAmount: 5, // Fixed CHZ amount to save per transaction
-        maxPerDay: 50 // Maximum CHZ to save per day
+        enabled: ROUNDUP_DEFAULTS.ENABLED,
+        fixedAmount: ROUNDUP_DEFAULTS.FIXED_AMOUNT, // Fixed CHZ amount to save per transaction
+        maxPerDay: ROUNDUP_DEFAULTS.MAX_PER_DAY // Maximum CHZ to save per day
     });
     const [isRoundUpActive, setIsRoundUpActive] = React.useState(false);
     const [totalSaved, setTotalSaved] = React.useState(0);
@@ -678,11 +431,11 @@ const WalletProvider = React.memo(({ children }) => {
             
             // Provide more specific error messages
             if (error.message.includes('insufficient funds')) {
-                throw new Error('Insufficient CHZ balance for deposit');
+                throw new Error(ERROR_MESSAGES.WALLET.INSUFFICIENT_FUNDS);
             } else if (error.message.includes('gas')) {
-                throw new Error('Transaction failed due to gas issues. Please try again.');
+                throw new Error(ERROR_MESSAGES.TRANSACTION.GAS_ERROR);
             } else if (error.message.includes('user rejected')) {
-                throw new Error('Transaction was rejected by user');
+                throw new Error(ERROR_MESSAGES.TRANSACTION.REJECTED);
             } else {
                 throw new Error(`Deposit failed: ${error.message}`);
             }

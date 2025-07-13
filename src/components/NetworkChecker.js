@@ -1,21 +1,22 @@
 import React from 'react';
 import { useWallet } from '../context/WalletProvider';
+import { NETWORK } from '../constants.js';
 import './NetworkChecker.css';
 
 const NetworkChecker = () => {
     const { chainId, isAuthenticated, provider } = useWallet();
 
-    const CHILIZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex (Chiliz Spicy Testnet)
+    const CHILIZ_SPICY_CHAIN_ID = NETWORK.CHILIZ_SPICY.CHAIN_ID_HEX;
     const CHILIZ_SPICY_CONFIG = {
-        chainId: '0x15b32',
-        chainName: 'Chiliz Spicy Testnet',
+        chainId: NETWORK.CHILIZ_SPICY.CHAIN_ID_HEX,
+        chainName: NETWORK.CHILIZ_SPICY.NAME,
         nativeCurrency: {
-            name: 'CHZ',
-            symbol: 'CHZ',
-            decimals: 18
+            name: NETWORK.CHILIZ_SPICY.CURRENCY.NAME,
+            symbol: NETWORK.CHILIZ_SPICY.CURRENCY.SYMBOL,
+            decimals: NETWORK.CHILIZ_SPICY.CURRENCY.DECIMALS
         },
-        rpcUrls: ['https://spicy-rpc.chiliz.com'],
-        blockExplorerUrls: ['https://scan.chiliz.com/']
+        rpcUrls: NETWORK.CHILIZ_SPICY.RPC_URLS,
+        blockExplorerUrls: [NETWORK.CHILIZ_SPICY.BLOCK_EXPLORER]
     };
 
     const isOnChilizNetwork = chainId === CHILIZ_SPICY_CHAIN_ID;
@@ -125,7 +126,7 @@ const NetworkChecker = () => {
                             <strong>RPC URL:</strong> spicy-rpc.chiliz.com
                         </div>
                         <div className="config-item">
-                            <strong>Chain ID:</strong> 88882
+                            <strong>Chain ID:</strong> {NETWORK.CHILIZ_SPICY.CHAIN_ID}
                         </div>
                         <div className="config-item">
                             <strong>Symbol:</strong> CHZ

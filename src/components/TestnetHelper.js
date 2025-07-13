@@ -1,11 +1,12 @@
 import React from 'react';
 import { useWallet } from '../context/WalletProvider';
+import { NETWORK } from '../constants.js';
 import './TestnetHelper.css';
 
 const TestnetHelper = () => {
     const { chainId, isAuthenticated, account } = useWallet();
 
-    const CHILIZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex
+    const CHILIZ_SPICY_CHAIN_ID = NETWORK.CHILIZ_SPICY.CHAIN_ID_HEX;
     const isOnSpicyTestnet = chainId === CHILIZ_SPICY_CHAIN_ID;
 
     const openFaucet = () => {
