@@ -20,18 +20,12 @@
 				"type": "uint256"
 			}
 		],
-		"name": "Deposit",
+		"name": "ClaimRequested",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
 			{
 				"indexed": false,
 				"internalType": "uint256",
@@ -39,18 +33,12 @@
 				"type": "uint256"
 			}
 		],
-		"name": "WithdrawalClaimed",
+		"name": "Deposit",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
 			{
 				"indexed": false,
 				"internalType": "uint256",
@@ -226,26 +214,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "totalPendingWithdrawals",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "withdrawToStake",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
