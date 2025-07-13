@@ -1,5 +1,4 @@
 const ChilizConnection = require('./chiliz-connection');
-const SmartContractManager = require('./smart-contract-manager');
 const WalletManager = require('./wallet-manager');
 const ChilizReceiverService = require('./chiliz-receiver-service');
 const EventEmitter = require('events');
@@ -11,7 +10,7 @@ class ChilizService extends EventEmitter {
     this.chilizConnection = null;
     this.contractManager = null;
     this.walletManager = null;
-    this.chilizReceiverService = null; // New ChilizReceiver service
+    this.chilizReceiverService = null;
     this.isRunning = false;
     this.startTime = null;
     
@@ -20,9 +19,6 @@ class ChilizService extends EventEmitter {
 
   async initialize() {
     try {
-      console.log('🔒 Initializing secure Chiliz service...');
-      
-      // Initialize Chiliz connection (WebSocket only)
       this.chilizConnection = new ChilizConnection({
         wsUrl: this.config.wsUrl,
         httpUrl: this.config.httpUrl,
@@ -30,6 +26,7 @@ class ChilizService extends EventEmitter {
       });
 
       await this.chilizConnection.initialize();
+      console.log('🔒 Connected to Chiliz RPC');
 
       // Initialize wallet manager
       this.walletManager = new WalletManager(this.chilizConnection);
@@ -49,22 +46,6 @@ class ChilizService extends EventEmitter {
       } else {
         console.log('⚠️  No smart contract configured - running in wallet-only mode');
       }
-
-      // Initialize contract manager (if contract config is provided)
-      // TEMPORARILY DISABLED - Smart contract functionality disabled to prevent filter errors
-      /*
-      if (this.config.contractAddress && this.config.contractABI) {
-        this.contractManager = new SmartContractManager(
-          this.chilizConnection,
-          this.config.contractAddress,
-          this.config.contractABI
-        );
-        await this.contractManager.initialize();
-        console.log('📋 Smart contract manager initialized');
-      } else {
-        console.log('⚠️  No smart contract configured - running in wallet-only mode');
-      }
-      */
       if (!this.chilizReceiverService) {
         console.log('⚠️  Smart contract functionality disabled - running in wallet-only mode');
       }
@@ -122,37 +103,6 @@ class ChilizService extends EventEmitter {
         });
       }
     });
-
-    // Handle contract events and trigger automatic paybacks
-    /*
-    this.on('contractInitialized', () => {
-      if (this.contractManager) {
-        this.contractManager.on('contractEvent', (eventData) => {
-          console.log(`📡 Contract event received: ${eventData.event.fragment?.name}`);
-          this.handleContractEvent(eventData);
-        });
-
-        // Handle specific events
-        this.contractManager.on('stakeProcessed', (event) => {
-          console.log('🥩 Stake event processed:', {
-            user: event.args?.[0],
-            amount: event.args?.[1]?.toString()
-          });
-        });
-
-        this.contractManager.on('unstakeProcessed', (event) => {
-          console.log('📤 Unstake event processed:', {
-            user: event.args?.[0],
-            amount: event.args?.[1]?.toString()
-          });
-        });
-
-        this.contractManager.on('paybackSent', (data) => {
-          console.log('💰 Payback sent:', data);
-        });
-      }
-    });
-    */
 
     // Handle wallet events
     this.on('walletInitialized', () => {
@@ -290,49 +240,12 @@ class ChilizService extends EventEmitter {
     if (this.chilizReceiverService) {
       this.emit('chilizReceiverInitialized');
     }
-    
-    // Contract manager initialization disabled
-    /*
-    if (this.contractManager) {
-      this.emit('contractInitialized');
-    }
-    */
-
-    // Set up automatic payback rules (example configuration)
-    this.setupDefaultPaybackRules();
 
     // Start monitoring
     this.startMonitoring();
 
     console.log('🚀 Chiliz service is now running in secure mode');
     console.log('🔒 No HTTP endpoints exposed - private blockchain service only');
-  }
-
-  async setupDefaultPaybackRules() {
-    if (!this.walletManager) return;
-
-    // Example payback rules - customize based on your needs
-    const defaultRules = [
-      {
-        transactionType: 'stake',
-        type: 'percentage',
-        value: 2, // 2% of stake amount
-        description: 'Reward for staking transaction'
-      },
-      {
-        transactionType: 'unstake',
-        type: 'fixed',
-        value: 0.1, // 0.1 CHZ fixed
-        description: 'Fixed reward for unstaking'
-      }
-    ];
-
-    try {
-      await this.walletManager.setupAutomaticPaybacks(defaultRules);
-      console.log('🔧 Default payback rules configured');
-    } catch (error) {
-      console.error('❌ Error setting up payback rules:', error);
-    }
   }
 
   startMonitoring() {
