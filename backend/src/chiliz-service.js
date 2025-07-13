@@ -62,44 +62,53 @@ class ChilizService extends EventEmitter {
     // Handle ChilizReceiver smart contract events
     this.on('chilizReceiverInitialized', () => {
       if (this.chilizReceiverService) {
-        this.chilizReceiverService.on('withdrawalRequested', (eventData) => {
-          console.log('📢 Withdrawal Request Event Handler:');
-          console.log(`   User: ${eventData.user}`);
+        
+        // Handle Deposit events - when CHZ is deposited to our contract
+        this.chilizReceiverService.on('deposit', (eventData) => {
+          console.log('📢 Deposit Event Handler:');
           console.log(`   Amount: ${eventData.amountFormatted} CHZ`);
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
+          console.log('🎯 Staking process should have been initiated automatically');
+          
+          // Log to our main event system
+          this.emit('deposit', eventData);
+        });
+
+        // Handle WithdrawalRequested events - when user requests to withdraw CHZ
+        this.chilizReceiverService.on('withdrawalRequested', (eventData) => {
+          console.log('📢 Withdrawal Request Event Handler:');
+          console.log(`   Amount: ${eventData.amountFormatted} CHZ`);
+          console.log(`   Transaction: ${eventData.transactionHash}`);
+          console.log(`   Block: ${eventData.blockNumber}`);
+          console.log('🔄 Unstaking process should have been initiated automatically');
           
           // Log to our main event system
           this.emit('withdrawalRequested', eventData);
         });
 
-        this.chilizReceiverService.on('depositBackExecuted', (eventData) => {
-          console.log('✅ DepositBack Executed Successfully:');
+        // Handle ClaimRequested events - when user claims their withdrawal after delay
+        this.chilizReceiverService.on('claimRequested', (eventData) => {
+          console.log('📢 Claim Request Event Handler:');
+          console.log(`   User: ${eventData.user}`);
+          console.log(`   Amount: ${eventData.amountFormatted} CHZ`);
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
-          console.log(`   Gas Used: ${eventData.gasUsed}`);
-          console.log(`   Amount Deposited: ${eventData.amountDeposited} CHZ`);
+          console.log('💸 Claim and transfer process should have been initiated automatically');
           
           // Log to our main event system
-          this.emit('depositBackExecuted', eventData);
+          this.emit('claimRequested', eventData);
         });
 
-        this.chilizReceiverService.on('depositBackError', (eventData) => {
-          console.error('❌ DepositBack Failed:');
+        // Handle any staking service errors
+        this.chilizReceiverService.on('stakingError', (eventData) => {
+          console.error('❌ Staking Service Error:');
+          console.error(`   Operation: ${eventData.operation}`);
           console.error(`   Error: ${eventData.error}`);
+          console.error(`   Amount: ${eventData.amount || 'N/A'}`);
           
           // Log to our main event system
-          this.emit('depositBackError', eventData);
-        });
-
-        this.chilizReceiverService.on('depositBackFailed', (eventData) => {
-          console.warn('⚠️ DepositBack Failed (Insufficient Funds):');
-          console.warn(`   Reason: ${eventData.reason}`);
-          console.warn(`   Required: ${eventData.required || eventData.totalRequired} CHZ`);
-          console.warn(`   Available: ${eventData.available} CHZ`);
-          
-          // Log to our main event system
-          this.emit('depositBackFailed', eventData);
+          this.emit('stakingError', eventData);
         });
       }
     });

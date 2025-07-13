@@ -1,10 +1,10 @@
 // stakingService.js
-import dotenv from "dotenv";
-import { JsonRpcProvider, Wallet, parseEther, ethers } from "ethers";
+const dotenv = require("dotenv");
+const { JsonRpcProvider, Wallet, parseEther, ethers } = require("ethers");
 
 dotenv.config();
 
-const RPC = process.env.RPC;
+const RPC = process.env.CHILIZ_RPC_URL || "https://spicy-rpc.chiliz.com";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const STAKING_CONTRACT = process.env.STAKING_CONTRACT;
 
@@ -34,7 +34,7 @@ class StakingService {
     try {
       const tx = await this.contract.stake(delegatorAddr, {
         value: parseEther(amountChz.toString()),
-        gasLimit: 300_000
+        gasLimit: 300000
       });
       console.log("Stake TX sent:", tx.hash);
       const receipt = await tx.wait();
@@ -55,7 +55,7 @@ class StakingService {
     try {
       const amountWei = parseEther(amountChz.toString());
       const tx = await this.contract.unstake(fundAddr, amountWei, {
-        gasLimit: 200_000
+        gasLimit: 200000
       });
       console.log("Unstake TX sent:", tx.hash);
       const receipt = await tx.wait();
@@ -74,7 +74,7 @@ class StakingService {
   async claimRewards(recipient) {
     try {
       const tx = await this.contract.claim(recipient, {
-        gasLimit: 200_000
+        gasLimit: 200000
       });
       console.log("Claim TX sent:", tx.hash);
       const receipt = await tx.wait();
@@ -87,4 +87,4 @@ class StakingService {
   }
 }
 
-export default StakingService;
+module.exports = StakingService;
