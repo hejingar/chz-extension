@@ -13,10 +13,9 @@
   },
   "scripts": {
     "start": "gulp watch connect",
-    "build": "gulp",
+    "build": "gulp build:all",
     "build:chrome": "gulp build-chrome",
     "build:firefox": "gulp build-firefox",
-    "build:all": "gulp build-all",
     "clean": "rm -rf dist dist-chrome dist-firefox",
     "clean:build": "npm run clean && npm run build:all",
     "postinstall": "patch-package",
