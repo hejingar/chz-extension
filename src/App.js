@@ -372,7 +372,7 @@ function App() {
                             </div>
                             <div className="withdrawal-info">
                               <p>⏰ Your withdrawal will be ready to claim in <strong>{formatCountdown(withdrawalCountdown)}</strong></p>
-                              <p>💡 The 1-hour waiting period is a security measure to protect your funds.</p>
+                              <p>💡 The 1-hour waiting period is required by the validator for the unstacking process.</p>
                             </div>
                           </div>
                         )}
