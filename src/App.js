@@ -4,8 +4,9 @@ import WalletProvider, { useWallet } from './context/WalletProvider';
 import NetworkChecker from './components/NetworkChecker';
 import RoundUpSettings from './components/RoundUpSettings';
 import TestnetHelper from './components/TestnetHelper';
+import { NETWORK } from './constants.js';
 
-const CHZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex
+const CHZ_SPICY_CHAIN_ID = NETWORK.CHILIZ_SPICY.CHAIN_ID_HEX;
 
 function App() {
   const {

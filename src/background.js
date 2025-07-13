@@ -1,21 +1,12 @@
 /*global chrome*/
 import { ethers } from 'ethers';
-
-// Smart contract configuration
-const ROUNDUP_CONTRACT_ADDRESS = '0x4b35a9bfd36c7e47ecefb5697157eb8a24902ef0'; // CHZ Savings Contract
-const ROUNDUP_CONTRACT_ABI = [
-  {
-    "inputs": [],
-    "name": "deposit",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  }
-];
-
-// CHZ Spicy Testnet configuration
-const CHZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex (Chiliz Spicy Testnet)
-const CHZ_SPICY_RPC_URL = 'https://spicy-rpc.chiliz.com';
+import { 
+  NETWORK, 
+  SMART_CONTRACT, 
+  EXTENSION_CONFIG, 
+  UI, 
+  NOTIFICATIONS 
+} from './constants.js';
 
 class RoundUpService {
   constructor() {
@@ -64,15 +55,15 @@ class RoundUpService {
   async initializeProviders() {
     try {
       // HTTP provider for RPC calls
-      this.provider = new ethers.providers.JsonRpcProvider(CHZ_SPICY_RPC_URL);
+      this.provider = new ethers.providers.JsonRpcProvider(NETWORK.CHILIZ_SPICY.RPC_HTTP);
       
       // Test the connection
-      const network = await this.provider.getNetwork();
+      await this.provider.getNetwork();
       
       // Initialize contract
       this.contract = new ethers.Contract(
-        ROUNDUP_CONTRACT_ADDRESS, 
-        ROUNDUP_CONTRACT_ABI, 
+        SMART_CONTRACT.SAVINGS.ADDRESS, 
+        SMART_CONTRACT.SAVINGS.ABI, 
         this.provider
       );
       
@@ -183,7 +174,7 @@ class RoundUpService {
       } finally {
         this.isMonitoring = false;
       }
-    }, 10000); // Check every 10 seconds for better responsiveness
+    }, EXTENSION_CONFIG.POLLING.TRANSACTION_CHECK_INTERVAL);
   }
 
   async checkForNewTransactions() {
@@ -227,7 +218,7 @@ class RoundUpService {
       const latestBlock = await this.provider.getBlock('latest');
       
       // Check the last few blocks for transactions from this address
-      const blocksToCheck = Math.min(5, latestBlock.number);
+      const blocksToCheck = Math.min(EXTENSION_CONFIG.TRANSACTION.BLOCKS_TO_CHECK, latestBlock.number);
       
       let shouldTriggerRoundUp = false;
       
@@ -241,7 +232,7 @@ class RoundUpService {
                 tx.nonce >= fromNonce && tx.nonce < toNonce) {
               
               // IMPORTANT: Ignore transactions TO the smart contract to prevent loops
-              if (tx.to && tx.to.toLowerCase() === ROUNDUP_CONTRACT_ADDRESS.toLowerCase()) {
+              if (tx.to && tx.to.toLowerCase() === SMART_CONTRACT.SAVINGS.ADDRESS.toLowerCase()) {
                 continue;
               }
               
@@ -295,8 +286,8 @@ class RoundUpService {
       
       // Set orange badge to make extension icon more noticeable
       try {
-        await chrome.action.setBadgeText({text: '💰'});
-        await chrome.action.setBadgeBackgroundColor({color: '#FF6B35'}); // Orange
+        await chrome.action.setBadgeText({text: UI.BADGES.PENDING});
+        await chrome.action.setBadgeBackgroundColor({color: UI.COLORS.CHZ_ORANGE});
       } catch (badgeError) {
         console.error('Could not set badge:', badgeError);
       }
@@ -420,17 +411,17 @@ class RoundUpService {
       
       // Set green badge briefly to show success
       try {
-        await chrome.action.setBadgeText({text: '✓'});
-        await chrome.action.setBadgeBackgroundColor({color: '#4CAF50'}); // Green
+        await chrome.action.setBadgeText({text: UI.BADGES.SUCCESS});
+        await chrome.action.setBadgeBackgroundColor({color: UI.COLORS.SUCCESS_GREEN});
         
-        // Clear the green badge after 3 seconds
+        // Clear the green badge after specified duration
         setTimeout(async () => {
           try {
             await chrome.action.setBadgeText({text: ''});
           } catch (clearError) {
             console.error('Could not clear confirmation badge:', clearError);
           }
-        }, 3000);
+        }, UI.TIMEOUTS.BADGE_SUCCESS_DURATION);
       } catch (badgeError) {
         console.error('Could not set confirmation badge:', badgeError);
       }
@@ -460,15 +451,15 @@ class RoundUpService {
   }
 
   async getPendingRoundUpRequest() {
-    return await this.getFromStorage('pendingRoundUpRequest');
+    return await this.getFromStorage(EXTENSION_CONFIG.STORAGE_KEYS.PENDING_ROUNDUP_REQUEST);
   }
 
   async setPendingRoundUpRequest(request) {
-    await this.setInStorage('pendingRoundUpRequest', request);
+    await this.setInStorage(EXTENSION_CONFIG.STORAGE_KEYS.PENDING_ROUNDUP_REQUEST, request);
   }
 
   async clearPendingRoundUpRequest() {
-    await this.setInStorage('pendingRoundUpRequest', null);
+    await this.setInStorage(EXTENSION_CONFIG.STORAGE_KEYS.PENDING_ROUNDUP_REQUEST, null);
   }
 
   async monitorTransaction(txHash, userAddress) {
@@ -479,7 +470,7 @@ class RoundUpService {
     try {
       // Check if this transaction is to the smart contract (our own deposit)
       const tx = await this.provider.getTransaction(txHash);
-      if (tx && tx.to && tx.to.toLowerCase() === ROUNDUP_CONTRACT_ADDRESS.toLowerCase()) {
+      if (tx && tx.to && tx.to.toLowerCase() === SMART_CONTRACT.SAVINGS.ADDRESS.toLowerCase()) {
         return;
       }
     } catch (error) {
@@ -519,7 +510,7 @@ class RoundUpService {
     };
     
     try {
-      const savedSettings = await this.getFromStorage('roundUpSettings');
+      const savedSettings = await this.getFromStorage(EXTENSION_CONFIG.STORAGE_KEYS.ROUNDUP_SETTINGS);
       return savedSettings ? { ...defaultSettings, ...savedSettings } : defaultSettings;
     } catch (error) {
       console.error('Error getting round-up settings:', error);
@@ -529,7 +520,7 @@ class RoundUpService {
 
   async setRoundUpSettings(settings) {
     try {
-      await this.setInStorage('roundUpSettings', settings);
+      await this.setInStorage(EXTENSION_CONFIG.STORAGE_KEYS.ROUNDUP_SETTINGS, settings);
     } catch (error) {
       console.error('Error setting round-up settings:', error);
       throw error;

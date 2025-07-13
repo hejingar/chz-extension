@@ -58,7 +58,8 @@ class ServiceMonitor {
     
     try {
       const { ethers } = require('ethers');
-      const provider = new ethers.JsonRpcProvider('https://spicy-rpc.chiliz.com');
+      const rpcUrl = process.env.CHILIZ_HTTP_URL || 'https://spicy-rpc.chiliz.com';
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
       
       const network = await provider.getNetwork();
       console.log(`✅ Connected to network: ${network.name} (Chain ID: ${network.chainId})`);
