@@ -6,6 +6,8 @@ const source = require('vinyl-source-stream');
 const gulpESLintNew = require('gulp-eslint-new');
 const connect = require('gulp-connect');
 const rename = require('gulp-rename');
+const postcss = require('gulp-postcss');
+const concat = require('gulp-concat');
 const fs = require('fs');
 
 var config = {
@@ -24,10 +26,31 @@ gulp.task('lint', function () {
     .pipe(gulpESLintNew.failAfterError());
 });
 
+// Build CSS with Tailwind processing
+gulp.task('build-css', function () {
+  return gulp.src('./src/index.css')
+    .pipe(postcss())
+    .pipe(rename('chz-extension.css'))
+    .pipe(gulp.dest(config.root));
+});
+
+gulp.task('build-css-chrome', function () {
+  return gulp.src('./src/index.css')
+    .pipe(postcss())
+    .pipe(rename('chz-extension.css'))
+    .pipe(gulp.dest(config.chromeRoot));
+});
+
+gulp.task('build-css-firefox', function () {
+  return gulp.src('./src/index.css')
+    .pipe(postcss())
+    .pipe(rename('chz-extension.css'))
+    .pipe(gulp.dest(config.firefoxRoot));
+});
+
 gulp.task('build-app', function (done) {
-  browserify({ entries: './src/index.js', debug: true }).plugin('css-modulesify', {
-    o: config.root + '/chz-extension.css'
-  }).transform(babelify)
+  browserify({ entries: './src/index.js', debug: true })
+    .transform(babelify)
     .bundle()
     .pipe(source('chz-extension.bundle.js'))
     .pipe(gulp.dest(config.root + '/js/'))
@@ -41,9 +64,8 @@ gulp.task('build-app', function (done) {
 });
 
 gulp.task('build-app-chrome', function (done) {
-  browserify({ entries: './src/index.js', debug: true }).plugin('css-modulesify', {
-    o: config.chromeRoot + '/chz-extension.css'
-  }).transform(babelify)
+  browserify({ entries: './src/index.js', debug: true })
+    .transform(babelify)
     .bundle()
     .pipe(source('chz-extension.bundle.js'))
     .pipe(gulp.dest(config.chromeRoot + '/js/'))
@@ -57,9 +79,8 @@ gulp.task('build-app-chrome', function (done) {
 });
 
 gulp.task('build-app-firefox', function (done) {
-  browserify({ entries: './src/index.js', debug: true }).plugin('css-modulesify', {
-    o: config.firefoxRoot + '/chz-extension.css'
-  }).transform(babelify)
+  browserify({ entries: './src/index.js', debug: true })
+    .transform(babelify)
     .bundle()
     .pipe(source('chz-extension.bundle.js'))
     .pipe(gulp.dest(config.firefoxRoot + '/js/'))
@@ -168,7 +189,7 @@ gulp.task('build-manifest-firefox', function (done) {
 });
 
 gulp.task('build-assets', function (done) {
-  gulp.src('./icon.svg')
+  gulp.src(['./icon.svg', './1.png', './2.png'])
     .pipe(gulp.dest(config.root))
     .on('end', function () {
       done();
@@ -176,7 +197,7 @@ gulp.task('build-assets', function (done) {
 });
 
 gulp.task('build-assets-chrome', function (done) {
-  gulp.src('./icon.svg')
+  gulp.src(['./icon.svg', './1.png', './2.png'])
     .pipe(gulp.dest(config.chromeRoot))
     .on('end', function () {
       done();
@@ -184,7 +205,7 @@ gulp.task('build-assets-chrome', function (done) {
 });
 
 gulp.task('build-assets-firefox', function (done) {
-  gulp.src('./icon.svg')
+  gulp.src(['./icon.svg', './1.png', './2.png'])
     .pipe(gulp.dest(config.firefoxRoot))
     .on('end', function () {
       done();
@@ -222,11 +243,12 @@ gulp.task('create-dirs-firefox', function (done) {
   done();
 });
 
-gulp.task('build', gulp.series('create-dirs', 'build-app', 'build-background', 'build-html', 'build-manifest', 'build-assets'));
+// Updated build tasks to include CSS processing
+gulp.task('build', gulp.series('create-dirs', 'build-css', 'build-app', 'build-background', 'build-html', 'build-manifest', 'build-assets'));
 
-gulp.task('build-chrome', gulp.series('create-dirs-chrome', 'build-app-chrome', 'build-background-chrome', 'build-html-chrome', 'build-manifest-chrome', 'build-assets-chrome'));
+gulp.task('build-chrome', gulp.series('create-dirs-chrome', 'build-css-chrome', 'build-app-chrome', 'build-background-chrome', 'build-html-chrome', 'build-manifest-chrome', 'build-assets-chrome'));
 
-gulp.task('build-firefox', gulp.series('create-dirs-firefox', 'build-app-firefox', 'build-background-firefox', 'build-html-firefox', 'build-manifest-firefox', 'build-assets-firefox'));
+gulp.task('build-firefox', gulp.series('create-dirs-firefox', 'build-css-firefox', 'build-app-firefox', 'build-background-firefox', 'build-html-firefox', 'build-manifest-firefox', 'build-assets-firefox'));
 
 gulp.task('build-all', gulp.series('build-chrome', 'build-firefox'));
 
@@ -246,31 +268,9 @@ gulp.task('open', function () {
 
 gulp.task('watch', function () {
   gulp.watch('./src/**/*.js', gulp.series('build-app', 'build-background'));
+  gulp.watch('./src/**/*.css', gulp.series('build-css'));
   gulp.watch('./popup.html', gulp.series('build-html'));
   gulp.watch('./manifest.json', gulp.series('build-manifest'));
-  gulp.watch('./icon.svg', gulp.series('build-assets'));
-});
-
-gulp.task('watch-chrome', function () {
-  gulp.watch('./src/**/*.js', gulp.series('build-app-chrome', 'build-background-chrome'));
-  gulp.watch('./popup.html', gulp.series('build-html-chrome'));
-  gulp.watch('./manifest.chrome.json', gulp.series('build-manifest-chrome'));
-  gulp.watch('./icon.svg', gulp.series('build-assets-chrome'));
-});
-
-gulp.task('watch-firefox', function () {
-  gulp.watch('./src/**/*.js', gulp.series('build-app-firefox', 'build-background-firefox'));
-  gulp.watch('./popup.html', gulp.series('build-html-firefox'));
-  gulp.watch('./manifest.firefox.json', gulp.series('build-manifest-firefox'));
-  gulp.watch('./icon.svg', gulp.series('build-assets-firefox'));
-});
-
-gulp.task('watch-all', function () {
-  gulp.watch('./src/**/*.js', gulp.series('build-app-chrome', 'build-background-chrome', 'build-app-firefox', 'build-background-firefox'));
-  gulp.watch('./popup.html', gulp.series('build-html-chrome', 'build-html-firefox'));
-  gulp.watch('./manifest.chrome.json', gulp.series('build-manifest-chrome'));
-  gulp.watch('./manifest.firefox.json', gulp.series('build-manifest-firefox'));
-  gulp.watch('./icon.svg', gulp.series('build-assets-chrome', 'build-assets-firefox'));
 });
 
 gulp.task('default', gulp.series('build'));

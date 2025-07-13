@@ -1,4 +1,3 @@
-/*global chrome*/
 import React from 'react';
 import createMetaMaskProvider from 'metamask-extension-provider';
 import Web3 from 'web3';
@@ -7,7 +6,7 @@ import { EthereumEvents } from '../utils/events';
 import storage from '../utils/storage';
 
 // Smart contract configuration
-const SAVINGS_CONTRACT_ADDRESS = '0x4b35a9bfd36c7e47ecefb5697157eb8a24902ef0';
+const SAVINGS_CONTRACT_ADDRESS = '0x06693a6dcf15f0226535e0ad5dd461a76c59c485';
 const SAVINGS_CONTRACT_ABI = [
     {
       "inputs": [],
@@ -322,7 +321,7 @@ const WalletProvider = React.memo(({ children }) => {
             // Request account access
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
             const chainId = await provider.request({ method: 'eth_chainId' });
-
+            
             setProvider(provider);
             setWeb3(web3Instance);
             setAccount(getNormalizeAddress(accounts));
@@ -451,49 +450,21 @@ const WalletProvider = React.memo(({ children }) => {
     };
 
     const loadTotalSaved = async () => {
-        if (!web3 || !account) {
-            console.warn('Cannot load total saved: wallet not connected');
-            return;
-        }
-
         try {
-            // Create contract instance
-            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
-            
-            // Call getAmountDeposit view function
-            const amountInWei = await contract.methods.getAmountDeposit(account).call();
-            
-            // Convert from Wei to CHZ
-            const amountInCHZ = parseFloat(web3.utils.fromWei(amountInWei, 'ether'));
-            
-            setTotalSaved(amountInCHZ);
-            
-            console.log(`Total saved loaded from contract: ${amountInCHZ} CHZ`);
-        } catch (error) {
-            console.error('Failed to load total saved from contract:', error);
-            // Fallback to local storage if contract call fails
-            try {
-                const saved = await storage.get('totalSaved');
-                if (saved && typeof saved === 'number') {
-                    setTotalSaved(saved);
-                }
-            } catch (storageError) {
-                console.error('Failed to load total saved from storage:', storageError);
+            const saved = await storage.get('totalSaved');
+            if (saved && typeof saved === 'number') {
+                setTotalSaved(saved);
             }
+        } catch (error) {
+            console.error('Failed to load total saved:', error);
         }
     };
 
     const updateTotalSaved = async (amount) => {
-        // This function is now mainly for UI updates
-        // The actual total will be refreshed from contract after transaction
         try {
             const newTotal = totalSaved + amount;
             setTotalSaved(newTotal);
-            
-            // Refresh from contract after a short delay to get accurate data
-            setTimeout(async () => {
-                await loadTotalSaved();
-            }, 3000);
+            await storage.set('totalSaved', newTotal);
         } catch (error) {
             console.error('Failed to update total saved:', error);
         }
@@ -674,7 +645,7 @@ const WalletProvider = React.memo(({ children }) => {
             
             return txHash;
         } catch (error) {
-            console.error('Auto-Save deposit to contract failed:', error);
+            console.error('Auto-save deposit to contract failed:', error);
             
             // Provide more specific error messages
             if (error.message.includes('insufficient funds')) {
@@ -688,6 +659,73 @@ const WalletProvider = React.memo(({ children }) => {
             }
         } finally {
             setIsRoundUpActive(false);
+        }
+    };
+
+    const executeManualDeposit = async (amount) => {
+        if (!web3 || !account) {
+            throw new Error('Wallet not connected');
+        }
+
+        if (!amount || amount <= 0) {
+            throw new Error('Please enter a valid amount');
+        }
+
+        try {
+            // Create contract instance
+            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
+            
+            const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
+
+            // Encode the deposit function call
+            const depositData = contract.methods.deposit().encodeABI();
+            
+            // Convert amount to hex properly (avoiding precision loss)
+            const amountHex = web3.utils.toHex(amountInWei);
+            
+            // Estimate gas for the transaction
+            let estimatedGas;
+            try {
+                estimatedGas = await contract.methods.deposit().estimateGas({
+                    from: account,
+                    value: amountInWei
+                });
+            } catch (gasError) {
+                console.warn('Could not estimate gas, using default:', gasError);
+                estimatedGas = 50000; // Default fallback
+            }
+
+            // Create transaction parameters for contract call
+            const txParams = {
+                from: account,
+                to: SAVINGS_CONTRACT_ADDRESS,
+                value: amountHex,
+                data: depositData,
+                gas: web3.utils.toHex(Math.ceil(estimatedGas * 1.2)) // 20% buffer on estimated gas
+            };
+
+            const txHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+            
+            // Update total saved
+            await updateTotalSaved(amount);
+            
+            return txHash;
+        } catch (error) {
+            console.error('Manual deposit to contract failed:', error);
+            
+            // Provide more specific error messages
+            if (error.message.includes('insufficient funds')) {
+                throw new Error('Insufficient CHZ balance for deposit');
+            } else if (error.message.includes('gas')) {
+                throw new Error('Transaction failed due to gas issues. Please try again.');
+            } else if (error.message.includes('user rejected')) {
+                throw new Error('Transaction was rejected by user');
+            } else {
+                throw new Error(`Deposit failed: ${error.message}`);
+            }
         }
     };
 
@@ -740,21 +778,6 @@ const WalletProvider = React.memo(({ children }) => {
         }
     }, [isAuthenticated, account]);
 
-    // Load total saved when wallet connects and refresh periodically
-    React.useEffect(() => {
-        if (isAuthenticated && account && web3) {
-            // Load immediately when wallet connects
-            loadTotalSaved();
-            
-            // Set up interval to refresh total saved every 30 seconds
-            const interval = setInterval(() => {
-                loadTotalSaved();
-            }, 30000); // Refresh every 30 seconds
-            
-            return () => clearInterval(interval);
-        }
-    }, [isAuthenticated, account, web3]);
-
     // Listen for background messages
     React.useEffect(() => {
         const handleBackgroundMessage = (message, sender, sendResponse) => {
@@ -799,11 +822,11 @@ const WalletProvider = React.memo(({ children }) => {
         // Round-up methods
         updateRoundUpSettings,
         executeRoundUpDeposit,
+        executeManualDeposit,
         monitorTransaction,
         confirmRoundUp,
         declineRoundUp,
-        checkForPendingRoundUp,
-        loadTotalSaved // Export this so it can be called manually
+        checkForPendingRoundUp
     };
 
     return (
@@ -812,7 +835,5 @@ const WalletProvider = React.memo(({ children }) => {
         </WalletContext.Provider>
     );
 });
-
-WalletProvider.displayName = 'WalletProvider';
 
 export default WalletProvider; 

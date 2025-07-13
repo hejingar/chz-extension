@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWallet } from '../context/WalletProvider';
-import './NetworkChecker.css';
+import { FiWifi, FiWifiOff, FiRefreshCw } from 'react-icons/fi';
 
 const NetworkChecker = () => {
     const { chainId, isAuthenticated, provider } = useWallet();
@@ -73,65 +73,113 @@ const NetworkChecker = () => {
     const networkInfo = getNetworkInfo();
 
     return (
-        <div className="network-checker">
-            <div className="network-status">
-                <div className="network-info">
+        <div className="space-y-6">
+            {/* Network Status */}
+            <div className="text-center">
+                <div className="flex items-center justify-center space-x-3 mb-4">
                     <div 
-                        className="network-dot" 
+                        className="w-3 h-3 rounded-full animate-pulse-soft"
                         style={{ backgroundColor: networkInfo.color }}
                     ></div>
-                    <span className="network-name">{networkInfo.name}</span>
+                    <span className="text-lg font-semibold text-gray-900">{networkInfo.name}</span>
                 </div>
                 
                 {!isOnChilizNetwork && (
-                    <div className="network-warning">
-                        <p>⚠️ You're not on Chiliz Spicy testnet!</p>
-                        <p>Switch to Chiliz Spicy to test transactions.</p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                        <div className="flex items-center justify-center space-x-2 mb-2">
+                            <FiWifiOff className="w-5 h-5 text-yellow-600" />
+                            <p className="text-yellow-800 font-medium">You're not on Chiliz Spicy testnet!</p>
+                        </div>
+                        <p className="text-yellow-700 text-sm mb-3">Switch to Chiliz Spicy to test transactions.</p>
                         <button 
                             onClick={switchToChiliz}
-                            className="switch-network-btn"
+                            className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-700 transition-colors duration-200 flex items-center space-x-2"
                         >
-                            🔄 Switch to Chiliz Spicy
+                            <FiRefreshCw className="w-4 h-4" />
+                            <span>Switch to Chiliz Spicy</span>
                         </button>
                     </div>
                 )}
 
                 {isOnChilizNetwork && (
-                    <div className="network-success">
-                        <p>✅ Connected to Chiliz Spicy testnet</p>
-                        <p>Ready for transactions!</p>
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                        <div className="flex items-center justify-center space-x-2 mb-2">
+                            <FiWifi className="w-5 h-5 text-green-600" />
+                            <p className="text-green-800 font-medium">Connected to Chiliz Spicy testnet</p>
+                        </div>
+                        <p className="text-green-700 text-sm">Ready for transactions!</p>
                     </div>
                 )}
             </div>
 
-            <div className="network-details">
-                <h4>🔗 Network Details:</h4>
-                <ul>
-                    <li><strong>Chain ID:</strong> {chainId} ({parseInt(chainId, 16)})</li>
-                    <li><strong>Currency:</strong> {isOnChilizNetwork ? 'CHZ' : 'ETH'}</li>
-                    <li><strong>RPC:</strong> {isOnChilizNetwork ? 'spicy-rpc.chiliz.com' : 'Various'}</li>
-                </ul>
+            {/* Network Details */}
+            <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <span>🔗</span>
+                    <span>Network Details</span>
+                </h4>
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">Chain ID:</span>
+                        <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                            {chainId} ({parseInt(chainId, 16)})
+                        </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">Currency:</span>
+                        <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                            {isOnChilizNetwork ? 'CHZ' : 'ETH'}
+                        </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">RPC:</span>
+                        <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                            {isOnChilizNetwork ? 'spicy-rpc.chiliz.com' : 'Various'}
+                        </span>
+                    </div>
+                </div>
             </div>
 
+            {/* Manual Setup */}
             {!isOnChilizNetwork && (
-                <div className="manual-setup">
-                    <h4>📋 Manual Setup:</h4>
-                    <p>If automatic switching fails, add Chiliz Spicy testnet manually:</p>
-                    <div className="network-config">
-                        <div className="config-item">
-                            <strong>Network Name:</strong> Chiliz Spicy Testnet
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                        <span>📋</span>
+                        <span>Manual Setup</span>
+                    </h4>
+                    <p className="text-sm text-gray-700 mb-3">
+                        If automatic switching fails, add Chiliz Spicy testnet manually:
+                    </p>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">Network Name:</span>
+                            <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                                Chiliz Spicy Testnet
+                            </span>
                         </div>
-                        <div className="config-item">
-                            <strong>RPC URL:</strong> spicy-rpc.chiliz.com
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">RPC URL:</span>
+                            <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                                spicy-rpc.chiliz.com
+                            </span>
                         </div>
-                        <div className="config-item">
-                            <strong>Chain ID:</strong> 88882
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">Chain ID:</span>
+                            <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                                88882
+                            </span>
                         </div>
-                        <div className="config-item">
-                            <strong>Symbol:</strong> CHZ
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">Symbol:</span>
+                            <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                                CHZ
+                            </span>
                         </div>
-                        <div className="config-item">
-                            <strong>Explorer:</strong> scan.chiliz.com
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">Explorer:</span>
+                            <span className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded">
+                                scan.chiliz.com
+                            </span>
                         </div>
                     </div>
                 </div>
