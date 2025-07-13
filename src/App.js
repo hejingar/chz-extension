@@ -108,7 +108,7 @@ function App() {
               <path d="M12 0L22.5 6v12L12 24L1.5 18V6L12 0z" fill="#FF6B35"/>
               <path d="M12 4L19.5 8v8L12 20L4.5 16V8L12 4z" fill="#FFF"/>
             </svg>
-            <h1>CHZ Auto-Save</h1>
+            <h1>GoodStake</h1>
           </div>
           
           <div className="connection-status">
@@ -158,7 +158,7 @@ function App() {
           {activeTab === 'dashboard' && (
             <div className="dashboard-tab">
               <div className="dashboard-header">
-                <h2>Auto-Save Dashboard</h2>
+                <h2>GoodStake Dashboard</h2>
                 <p>Track your CHZ savings automatically</p>
               </div>
 
@@ -172,7 +172,7 @@ function App() {
                 </div>
 
                 <div className="summary-card auto-save-status">
-                  <h3>Auto-Save Status</h3>
+                  <h3>GoodStake Status</h3>
                   <div className="status-indicator">
                     <span className={`status-dot ${roundUpSettings.enabled ? 'enabled' : 'disabled'}`}></span>
                     <span className="status-text">
@@ -189,7 +189,7 @@ function App() {
               {isAuthenticated && !isCorrectNetwork && (
                 <div className="network-warning">
                   <h3>⚠️ Wrong Network</h3>
-                  <p>Please switch to CHZ Spicy Testnet to use auto-save features.</p>
+                  <p>Please switch to CHZ Spicy Testnet to use GoodStake features.</p>
                 </div>
               )}
 
@@ -221,7 +221,7 @@ function App() {
                 {!isAuthenticated ? (
                   <div className="connect-wallet">
                     <h3>Connect MetaMask</h3>
-                    <p>Connect your MetaMask wallet to start using CHZ Auto-Save.</p>
+                    <p>Connect your MetaMask wallet to start using GoodStake.</p>
                     <button 
                       className="btn btn-primary"
                       onClick={handleConnectWallet}
@@ -267,52 +267,6 @@ function App() {
                 </div>
               )}
 
-              {/* Test Transaction */}
-              {isAuthenticated && isCorrectNetwork && (
-                <div className="test-transaction">
-                  <h3>Test Transaction</h3>
-                  <p>Send a test transaction to try the auto-save feature.</p>
-                  
-                  <div className="form-group">
-                    <label htmlFor="testAddress">To Address:</label>
-                    <input
-                      id="testAddress"
-                      type="text"
-                      value={testAddress}
-                      onChange={(e) => setTestAddress(e.target.value)}
-                      placeholder="Enter recipient address"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="testAmount">Amount (CHZ):</label>
-                    <input
-                      id="testAmount"
-                      type="number"
-                      value={testAmount}
-                      onChange={(e) => setTestAmount(e.target.value)}
-                      placeholder="Enter amount in CHZ"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <button 
-                    className="btn btn-primary"
-                    onClick={handleSendTestTransaction}
-                    disabled={isRoundUpActive}
-                  >
-                    {isRoundUpActive ? 'Processing...' : 'Send Test Transaction'}
-                  </button>
-                  
-                  {transactionStatus && (
-                    <div className="transaction-status">
-                      <p>{transactionStatus}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Testnet Helper */}
               {isAuthenticated && (
                 <div className="testnet-helper">
@@ -326,7 +280,7 @@ function App() {
           {activeTab === 'settings' && (
             <div className="settings-tab">
               <div className="settings-header">
-                <h2>Auto-Save Settings</h2>
+                <h2>GoodStake Settings</h2>
                 <p>Configure your automatic CHZ savings</p>
               </div>
 
@@ -340,7 +294,7 @@ function App() {
 
               {!isAuthenticated && (
                 <div className="settings-notice">
-                  <p>Connect your wallet to configure auto-save settings.</p>
+                  <p>Connect your wallet to setup GoodStake.</p>
                 </div>
               )}
             </div>
@@ -357,7 +311,7 @@ function App() {
             </div>
             <div className="modal-body">
               <p>We detected a transaction from your wallet!</p>
-              <p>Would you like to save <strong>{pendingRoundUp.amount} CHZ</strong> to your savings?</p>
+              <p>Would you like to add <strong>{pendingRoundUp.amount} CHZ</strong> to your savings?</p>
               <div className="savings-info">
                 <div className="info-row">
                   <span>Amount to save:</span>

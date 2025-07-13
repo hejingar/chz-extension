@@ -22,9 +22,9 @@ const AutoSaveSettings = () => {
         setIsSaving(true);
         try {
             await updateRoundUpSettings(localSettings);
-            console.log('✅ Auto-save settings saved successfully');
+            console.log('✅ GoodStake settings saved successfully');
         } catch (error) {
-            console.error('❌ Failed to save auto-save settings:', error);
+            console.error('❌ Failed to save GoodStake settings:', error);
             alert('Failed to save settings. Please try again.');
         } finally {
             setIsSaving(false);
@@ -49,7 +49,7 @@ const AutoSaveSettings = () => {
                 </div>
                 <div className="savings-status">
                     {isRoundUpActive ? (
-                        <span className="status-active">🔄 Processing auto-save...</span>
+                        <span className="status-active">🔄 Processing Auto-Save...</span>
                     ) : (
                         <span className="status-ready">✅ Ready</span>
                     )}
@@ -65,7 +65,7 @@ const AutoSaveSettings = () => {
                             onChange={(e) => handleSettingChange('enabled', e.target.checked)}
                         />
                         <span className="checkbox-custom"></span>
-                        Enable Auto-Save
+                        Enable GoodStake
                     </label>
                     <p className="setting-description">
                         Automatically save CHZ with every transaction you make
@@ -129,15 +129,15 @@ const AutoSaveSettings = () => {
                             <div className="example-scenarios">
                                 <div className="scenario">
                                     <span className="scenario-label">Example 1:</span>
-                                    <span className="scenario-text">Send 0.0001 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                    <span className="scenario-text">Send 0.0001 CHZ → Save {localSettings.fixedAmount} CHZ</span>
                                 </div>
                                 <div className="scenario">
                                     <span className="scenario-label">Example 2:</span>
-                                    <span className="scenario-text">Send 100 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                    <span className="scenario-text">Send 100 CHZ → Save {localSettings.fixedAmount} CHZ</span>
                                 </div>
                                 <div className="scenario">
                                     <span className="scenario-label">Example 3:</span>
-                                    <span className="scenario-text">Send 0.01 CHZ → Auto-save {localSettings.fixedAmount} CHZ</span>
+                                    <span className="scenario-text">Send 0.01 CHZ → Save {localSettings.fixedAmount} CHZ</span>
                                 </div>
                             </div>
                         </div>
