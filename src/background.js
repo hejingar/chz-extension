@@ -2,7 +2,7 @@
 import { ethers } from 'ethers';
 
 // Smart contract configuration
-const ROUNDUP_CONTRACT_ADDRESS = '0x06693a6dcf15f0226535e0ad5dd461a76c59c485'; // CHZ Savings Contract
+const ROUNDUP_CONTRACT_ADDRESS = '0x4b35a9bfd36c7e47ecefb5697157eb8a24902ef0'; // CHZ Savings Contract
 const ROUNDUP_CONTRACT_ABI = [
   {
     "inputs": [],
@@ -14,7 +14,7 @@ const ROUNDUP_CONTRACT_ABI = [
 ];
 
 // CHZ Spicy Testnet configuration
-const CHZ_SPICY_CHAIN_ID = '0x15b52'; // 88882 in hex (Chiliz Spicy Testnet)
+const CHZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex (Chiliz Spicy Testnet)
 const CHZ_SPICY_RPC_URL = 'https://spicy-rpc.chiliz.com';
 
 class RoundUpService {
@@ -32,6 +32,13 @@ class RoundUpService {
   async init() {
     // Initialize providers
     await this.initializeProviders();
+    
+    // Clear any leftover badge from previous session
+    try {
+      await chrome.action.setBadgeText({text: ''});
+    } catch (badgeError) {
+      console.warn('Could not clear badge on startup:', badgeError);
+    }
     
     // Listen for popup messages
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -286,6 +293,14 @@ class RoundUpService {
       // Store pending request
       await this.setPendingRoundUpRequest(roundUpRequest);
       
+      // Set orange badge to make extension icon more noticeable
+      try {
+        await chrome.action.setBadgeText({text: '💰'});
+        await chrome.action.setBadgeBackgroundColor({color: '#FF6B35'}); // Orange
+      } catch (badgeError) {
+        console.error('Could not set badge:', badgeError);
+      }
+      
       // Show notification
       try {
         await chrome.notifications.create({
@@ -403,6 +418,23 @@ class RoundUpService {
       // Clear pending request
       await this.clearPendingRoundUpRequest();
       
+      // Set green badge briefly to show success
+      try {
+        await chrome.action.setBadgeText({text: '✓'});
+        await chrome.action.setBadgeBackgroundColor({color: '#4CAF50'}); // Green
+        
+        // Clear the green badge after 3 seconds
+        setTimeout(async () => {
+          try {
+            await chrome.action.setBadgeText({text: ''});
+          } catch (clearError) {
+            console.error('Could not clear confirmation badge:', clearError);
+          }
+        }, 3000);
+      } catch (badgeError) {
+        console.error('Could not set confirmation badge:', badgeError);
+      }
+      
     } catch (error) {
       console.error('Error confirming round-up:', error);
       throw error;
@@ -413,6 +445,13 @@ class RoundUpService {
     try {
       // Clear pending request
       await this.clearPendingRoundUpRequest();
+      
+      // Clear the badge since round-up is declined
+      try {
+        await chrome.action.setBadgeText({text: ''});
+      } catch (badgeError) {
+        console.error('Could not clear badge:', badgeError);
+      }
       
     } catch (error) {
       console.error('Error declining round-up:', error);

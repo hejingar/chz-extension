@@ -6,7 +6,7 @@ import { EthereumEvents } from '../utils/events';
 import storage from '../utils/storage';
 
 // Smart contract configuration
-const SAVINGS_CONTRACT_ADDRESS = '0x06693a6dcf15f0226535e0ad5dd461a76c59c485';
+const SAVINGS_CONTRACT_ADDRESS = '0x4b35a9bfd36c7e47ecefb5697157eb8a24902ef0';
 const SAVINGS_CONTRACT_ABI = [
     {
       "inputs": [],
@@ -321,7 +321,7 @@ const WalletProvider = React.memo(({ children }) => {
             // Request account access
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
             const chainId = await provider.request({ method: 'eth_chainId' });
-            
+
             setProvider(provider);
             setWeb3(web3Instance);
             setAccount(getNormalizeAddress(accounts));

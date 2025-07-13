@@ -5,9 +5,9 @@ import './NetworkChecker.css';
 const NetworkChecker = () => {
     const { chainId, isAuthenticated, provider } = useWallet();
 
-    const CHILIZ_SPICY_CHAIN_ID = '0x15b52'; // 88882 in hex (Chiliz Spicy Testnet)
+    const CHILIZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex (Chiliz Spicy Testnet)
     const CHILIZ_SPICY_CONFIG = {
-        chainId: '0x15b52',
+        chainId: '0x15b32',
         chainName: 'Chiliz Spicy Testnet',
         nativeCurrency: {
             name: 'CHZ',
@@ -59,7 +59,7 @@ const NetworkChecker = () => {
             '0x89': { name: 'Polygon', color: '#8247e5' },
             '0x38': { name: 'BSC', color: '#f3ba2f' },
             '0x15b3': { name: 'Chiliz Mainnet', color: '#ff6b35' },
-            '0x15b52': { name: 'Chiliz Spicy Testnet', color: '#ff6b35' },
+            '0x15b32': { name: 'Chiliz Spicy Testnet', color: '#ff6b35' },
             '0xaa36a7': { name: 'Sepolia Testnet', color: '#ff6b35' }
         };
         

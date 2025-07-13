@@ -5,7 +5,7 @@ import './TestnetHelper.css';
 const TestnetHelper = () => {
     const { chainId, isAuthenticated, account } = useWallet();
 
-    const CHILIZ_SPICY_CHAIN_ID = '0x15b52'; // 88882 in hex
+    const CHILIZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex
     const isOnSpicyTestnet = chainId === CHILIZ_SPICY_CHAIN_ID;
 
     const openFaucet = () => {
