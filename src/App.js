@@ -5,7 +5,7 @@ import NetworkChecker from './components/NetworkChecker';
 import RoundUpSettings from './components/RoundUpSettings';
 import TestnetHelper from './components/TestnetHelper';
 
-const CHZ_SPICY_CHAIN_ID = '0x15b52'; // 88882 in hex
+const CHZ_SPICY_CHAIN_ID = '0x15b32'; // 88882 in hex
 
 function App() {
   const {
