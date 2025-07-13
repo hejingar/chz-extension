@@ -6,10 +6,15 @@
   "permissions": [
     "storage",
     "activeTab",
+    "tabs",
+    "webNavigation",
+    "webRequest",
+    "declarativeNetRequest",
     "notifications"
   ],
   "host_permissions": [
-    "https://*/*"
+    "https://*/*",
+    "http://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -21,7 +26,12 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "js/background.js"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
@@ -29,8 +39,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-    "popup.js",
-    "background.js",
+        "popup.js",
+        "js/background.js",
         "popup.css",
         "icon.png"
       ],

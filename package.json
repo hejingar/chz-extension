@@ -14,7 +14,14 @@
   "scripts": {
     "start": "gulp watch connect",
     "build": "gulp",
-    "postinstall": "patch-package"
+    "build:chrome": "gulp build-chrome",
+    "build:firefox": "gulp build-firefox",
+    "build:all": "gulp build-all",
+    "clean": "rm -rf dist dist-chrome dist-firefox",
+    "clean:build": "npm run clean && npm run build:all",
+    "postinstall": "patch-package",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "browserslist": {
     "production": [
@@ -39,6 +46,7 @@
     "gulp": "^4.0.2",
     "gulp-connect": "^5.7.0",
     "gulp-eslint-new": "^1.4.2",
+    "gulp-rename": "^2.1.0",
     "open": "^8.4.0",
     "patch-package": "^6.4.7",
     "vinyl-source-stream": "^2.0.0"
