@@ -73,7 +73,12 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('🎯 Staking process should have been initiated automatically');
-          this.stakingService.stakeChz(eventData.amountFormatted);
+		try {
+			this.stakingService.stakeChz(eventData.amountFormatted);
+		} catch (error) {
+			console.error('❌ Error during staking:', error);
+		}
+
           // Log to our main event system
           this.emit('deposit', eventData);
         });
@@ -85,8 +90,12 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('🔄 Unstaking process should have been initiated automatically');
+		try {
 			this.stakingService.unstakeChz(eventData.amountFormatted);
-          
+		} catch (error) {
+			console.error('❌ Error during unstaking:', error);
+		}
+        
           // Log to our main event system
           this.emit('withdrawalRequested', eventData);
         });
@@ -99,8 +108,12 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('💸 Claim and transfer process should have been initiated automatically');
-          this.stakingService.claimRewards();
-		this.walletManager.sendPayment(eventData.user, eventData.amountFormatted, 'Claimed withdrawal');
+		try {
+			this.stakingService.claimRewards();
+			this.walletManager.sendPayment(eventData.user, eventData.amountFormatted, 'Claimed withdrawal');
+		} catch (error) {
+			console.error('❌ Error during claim:', error);
+		}
           // Log to our main event system
           this.emit('claimRequested', eventData);
         });
