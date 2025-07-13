@@ -81,22 +81,27 @@
 /* Tab Navigation */
 .tab-navigation {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
   margin-bottom: 30px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0 4px;
 }
 
 .tab-button {
   background: rgba(102, 126, 234, 0.1);
   border: 2px solid transparent;
-  padding: 12px 24px;
-  font-size: 14px;
+  padding: 10px 18px;
+  font-size: 13px;
   border-radius: 25px;
   cursor: pointer;
   color: #667eea;
   font-weight: 500;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab-button:hover {
@@ -364,12 +369,6 @@
   border: 1px solid #e9ecef;
 }
 
-.transaction-status p {
-  margin: 0;
-  color: #495057;
-  font-size: 0.9em;
-}
-
 /* Settings Tab */
 .settings-section {
   background: white;
@@ -520,6 +519,156 @@
   flex: 1;
 }
 
+/* PSG Foundation Info */
+.psg-foundation-info {
+  margin: 20px 0;
+}
+
+.impact-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.impact-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.impact-card p {
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+.impact-highlights {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.highlight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.highlight .icon {
+  font-size: 1.1em;
+}
+
+/* About Tab */
+.about-tab, .technical-tab {
+  padding: 20px 0;
+}
+
+.about-header, .technical-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.about-header h2, .technical-header h2 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 1.6em;
+  font-weight: 600;
+}
+
+.about-header p, .technical-header p {
+  margin: 0;
+  color: #666;
+  font-size: 1em;
+}
+
+.about-section, .technical-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feature-card, .tech-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.feature-card:hover, .tech-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.feature-card h3, .tech-card h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 1.1em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feature-card p, .tech-card p {
+  margin: 0;
+  color: #555;
+  line-height: 1.6;
+  font-size: 0.95em;
+}
+
+/* Technical Flow Steps */
+.flow-steps {
+  margin-top: 12px;
+}
+
+.step {
+  background: #f8f9fa;
+  padding: 10px 16px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  font-size: 0.9em;
+  color: #555;
+}
+
+/* PSG Foundation Link Styling */
+.psg-link {
+  color: #fff !important;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+.psg-link:hover {
+  color: #fff !important;
+  text-decoration-color: #fff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+/* For links in feature cards (non-impact cards) */
+.feature-card .psg-link, .tech-card .psg-link, .step .psg-link {
+  color: #667eea !important;
+  text-decoration: underline;
+  text-decoration-color: rgba(102, 126, 234, 0.5);
+}
+
+.feature-card .psg-link:hover, .tech-card .psg-link:hover, .step .psg-link:hover {
+  color: #5a6fd8 !important;
+  text-decoration-color: #667eea;
+}
+
 /* Animations */
 @keyframes pulse {
   0% {
@@ -569,13 +718,13 @@
   }
   
   .tab-navigation {
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 1px;
+    padding: 0 2px;
   }
   
   .tab-button {
-    font-size: 12px;
-    padding: 8px 16px;
+    font-size: 11px;
+    padding: 8px 12px;
   }
   
   .savings-summary {
@@ -622,4 +771,22 @@
   .wallet-section, .network-section, .test-transaction, .testnet-helper {
     padding: 16px;
   }
-} 
+  
+  .impact-highlights {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .highlight {
+    justify-content: center;
+    min-width: 140px;
+  }
+  
+  .about-header h2, .technical-header h2 {
+    font-size: 1.4em;
+  }
+  
+  .feature-card, .tech-card {
+    padding: 16px;
+  }
+}
