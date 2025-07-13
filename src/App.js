@@ -28,14 +28,21 @@ function App() {
     
     // Round-up methods
     updateRoundUpSettings,
+    executeRoundUpDeposit,
     confirmRoundUp,
-    declineRoundUp
+    declineRoundUp,
+    loadTotalSaved
   } = useWallet();
 
   // State for UI
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isConnecting, setIsConnecting] = useState(false);
   const [testAddress, setTestAddress] = useState('');
+  
+  // State for manual deposit
+  const [depositAmount, setDepositAmount] = useState('');
+  const [isDepositing, setIsDepositing] = useState(false);
+  const [depositError, setDepositError] = useState('');
 
   // Initialize test address with user's address
   useEffect(() => {
@@ -66,6 +73,43 @@ function App() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+  };
+
+  const handleManualDeposit = async () => {
+    if (!depositAmount || isNaN(depositAmount) || parseFloat(depositAmount) <= 0) {
+      setDepositError('Please enter a valid amount');
+      return;
+    }
+
+    const amount = parseFloat(depositAmount);
+    
+    // Basic validation
+    if (amount < 0.01) {
+      setDepositError('Minimum deposit is 0.01 CHZ');
+      return;
+    }
+
+    setIsDepositing(true);
+    setDepositError('');
+
+    try {
+      const txHash = await executeRoundUpDeposit(amount);
+      
+      // Reset form on success
+      setDepositAmount('');
+      
+      // Reload total saved amount
+      if (loadTotalSaved) {
+        await loadTotalSaved();
+      }
+      
+      console.log('Manual deposit successful:', txHash);
+    } catch (error) {
+      console.error('Manual deposit failed:', error);
+      setDepositError(error.message || 'Deposit failed. Please try again.');
+    } finally {
+      setIsDepositing(false);
+    }
   };
 
   const isCorrectNetwork = chainId === CHZ_SPICY_CHAIN_ID;
@@ -162,6 +206,46 @@ function App() {
                   </div>
                 </div>
               </div>
+
+              {/* Manual Deposit Section */}
+              {isAuthenticated && isCorrectNetwork && (
+                <div className="manual-deposit-section">
+                  <div className="deposit-card">
+                    <h3>💰 Manual Deposit</h3>
+                    <p>Instantly add CHZ to your savings</p>
+                    
+                    <div className="deposit-form">
+                      <div className="input-group">
+                        <input
+                          type="number"
+                          placeholder="Enter CHZ amount"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                          min="0.01"
+                          step="0.01"
+                          disabled={isDepositing}
+                          className="deposit-input"
+                        />
+                        <span className="input-suffix">CHZ</span>
+                      </div>
+                      
+                      {depositError && (
+                        <div className="error-message">
+                          {depositError}
+                        </div>
+                      )}
+                      
+                      <button 
+                        className="btn btn-primary deposit-btn"
+                        onClick={handleManualDeposit}
+                        disabled={isDepositing || !depositAmount || isNaN(depositAmount) || parseFloat(depositAmount) <= 0}
+                      >
+                        {isDepositing ? 'Processing...' : 'Deposit CHZ'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* PSG Foundation Impact */}
               <div className="psg-foundation-info">
