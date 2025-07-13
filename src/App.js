@@ -314,7 +314,7 @@ function App() {
               {isAuthenticated && isCorrectNetwork && (
                 <div className="withdrawal-section">
                   <div className="withdrawal-card">
-                    <h3>�� Withdraw CHZ</h3>
+                    <h3>🔄 Withdraw CHZ</h3>
                     <p>Withdraw your saved CHZ back to your wallet</p>
                     
                     {!pendingWithdrawal ? (
