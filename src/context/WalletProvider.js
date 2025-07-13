@@ -39,6 +39,12 @@ const WalletProvider = React.memo(({ children }) => {
     const [pendingRoundUp, setPendingRoundUp] = React.useState(null);
     const [showRoundUpDialog, setShowRoundUpDialog] = React.useState(false);
 
+    // Withdrawal state
+    const [pendingWithdrawal, setPendingWithdrawal] = React.useState(null);
+    const [withdrawalCountdown, setWithdrawalCountdown] = React.useState(null);
+    const [isWithdrawing, setIsWithdrawing] = React.useState(false);
+    const [isClaiming, setIsClaiming] = React.useState(false);
+
     const getProvider = () => {
         try {
             // First try to use window.ethereum if available
@@ -444,6 +450,207 @@ const WalletProvider = React.memo(({ children }) => {
         }
     };
 
+    const executeWithdrawal = async (amount) => {
+        if (!web3 || !account) {
+            throw new Error('Wallet not connected');
+        }
+
+        try {
+            setIsWithdrawing(true);
+            
+            // Create contract instance
+            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
+            
+            const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
+
+            // First check if user has enough balance
+            const userBalance = await contract.methods.getAmountDeposit(account).call();
+            const userBalanceInCHZ = parseFloat(web3.utils.fromWei(userBalance, 'ether'));
+            
+            if (userBalanceInCHZ < amount) {
+                throw new Error(`Insufficient balance. You have ${userBalanceInCHZ} CHZ but trying to withdraw ${amount} CHZ`);
+            }
+
+            // Check if user already has a pending withdrawal
+            const pendingAmount = await contract.methods.getPendingWithdrawAmount(account).call();
+            const pendingAmountInCHZ = parseFloat(web3.utils.fromWei(pendingAmount, 'ether'));
+            
+            if (pendingAmountInCHZ > 0) {
+                throw new Error(`You already have a pending withdrawal of ${pendingAmountInCHZ} CHZ`);
+            }
+
+            // Encode the requestWithdrawal function call
+            const withdrawalCallData = contract.methods.requestWithdrawal(amountInWei).encodeABI();
+            
+            // Estimate gas for the transaction
+            let estimatedGas;
+            try {
+                estimatedGas = await contract.methods.requestWithdrawal(amountInWei).estimateGas({
+                    from: account
+                });
+            } catch (gasError) {
+                console.warn('Could not estimate gas, using default:', gasError);
+                estimatedGas = 100000; // Default fallback
+            }
+
+            // Create transaction parameters for contract call
+            const txParams = {
+                from: account,
+                to: SAVINGS_CONTRACT_ADDRESS,
+                value: '0x0', // No value sent for withdrawal request
+                data: withdrawalCallData,
+                gas: web3.utils.toHex(Math.ceil(estimatedGas * 1.2)) // 20% buffer on estimated gas
+            };
+
+            const txHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+            
+            // Start the 1-hour countdown
+            const requestTime = Date.now();
+            const claimTime = requestTime + (60 * 60 * 1000); // 1 hour from now
+            
+            const withdrawalData = {
+                amount: amount,
+                requestTime: requestTime,
+                claimTime: claimTime,
+                txHash: txHash,
+                status: 'pending'
+            };
+            
+            setPendingWithdrawal(withdrawalData);
+            startWithdrawalCountdown(claimTime);
+            
+            // Store in local storage for persistence
+            await storage.set('pendingWithdrawal', withdrawalData);
+            
+            return txHash;
+        } catch (error) {
+            console.error('Withdrawal request failed:', error);
+            throw error;
+        } finally {
+            setIsWithdrawing(false);
+        }
+    };
+
+    const startWithdrawalCountdown = (claimTime) => {
+        const updateCountdown = () => {
+            const now = Date.now();
+            const timeLeft = claimTime - now;
+            
+            if (timeLeft <= 0) {
+                setWithdrawalCountdown(null);
+                // Update withdrawal status to ready
+                setPendingWithdrawal(prev => prev ? { ...prev, status: 'ready' } : null);
+                return;
+            }
+            
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+            
+            setWithdrawalCountdown({ hours, minutes, seconds, timeLeft });
+        };
+        
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        
+        // Clear interval when countdown reaches zero
+        setTimeout(() => {
+            clearInterval(interval);
+        }, claimTime - Date.now());
+    };
+
+    const executeClaimWithdrawal = async () => {
+        if (!web3 || !account) {
+            throw new Error('Wallet not connected');
+        }
+
+        if (!pendingWithdrawal || pendingWithdrawal.status !== 'ready') {
+            throw new Error('No withdrawal ready to claim');
+        }
+
+        try {
+            setIsClaiming(true);
+            
+            // Create contract instance
+            const contract = new web3.eth.Contract(SAVINGS_CONTRACT_ABI, SAVINGS_CONTRACT_ADDRESS);
+
+            // Encode the claimWithdrawal function call
+            const claimData = contract.methods.claimWithdrawal().encodeABI();
+            
+            // Estimate gas for the transaction
+            let estimatedGas;
+            try {
+                estimatedGas = await contract.methods.claimWithdrawal().estimateGas({
+                    from: account
+                });
+            } catch (gasError) {
+                console.warn('Could not estimate gas, using default:', gasError);
+                estimatedGas = 100000; // Default fallback
+            }
+
+            // Create transaction parameters for contract call
+            const txParams = {
+                from: account,
+                to: SAVINGS_CONTRACT_ADDRESS,
+                value: '0x0', // No value sent for claim
+                data: claimData,
+                gas: web3.utils.toHex(Math.ceil(estimatedGas * 1.2)) // 20% buffer on estimated gas
+            };
+
+            const txHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+            
+            // Clear withdrawal state
+            setPendingWithdrawal(null);
+            setWithdrawalCountdown(null);
+            
+            // Clear from local storage
+            await storage.set('pendingWithdrawal', null);
+            
+            // Refresh total saved amount
+            await loadTotalSaved();
+            
+            return txHash;
+        } catch (error) {
+            console.error('Claim withdrawal failed:', error);
+            throw error;
+        } finally {
+            setIsClaiming(false);
+        }
+    };
+
+    const loadPendingWithdrawal = async () => {
+        try {
+            const storedWithdrawal = await storage.get('pendingWithdrawal');
+            if (storedWithdrawal) {
+                setPendingWithdrawal(storedWithdrawal);
+                
+                // Check if countdown should still be running
+                if (storedWithdrawal.claimTime > Date.now()) {
+                    startWithdrawalCountdown(storedWithdrawal.claimTime);
+                } else {
+                    // Time has passed, mark as ready
+                    const updatedWithdrawal = { ...storedWithdrawal, status: 'ready' };
+                    setPendingWithdrawal(updatedWithdrawal);
+                    await storage.set('pendingWithdrawal', updatedWithdrawal);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load pending withdrawal:', error);
+        }
+    };
+
+    const cancelWithdrawal = async () => {
+        setPendingWithdrawal(null);
+        setWithdrawalCountdown(null);
+        await storage.set('pendingWithdrawal', null);
+    };
+
     const sendToBackground = (message) => {
         return new Promise((resolve, reject) => {
             // Check if chrome runtime is available
@@ -529,6 +736,13 @@ const WalletProvider = React.memo(({ children }) => {
         }
     }, [isAuthenticated, account]);
 
+    // Load pending withdrawal when wallet connects
+    React.useEffect(() => {
+        if (isAuthenticated && account) {
+            loadPendingWithdrawal();
+        }
+    }, [isAuthenticated, account]);
+
     const value = {
         // Wallet state
         account,
@@ -556,7 +770,19 @@ const WalletProvider = React.memo(({ children }) => {
         confirmRoundUp,
         declineRoundUp,
         checkForPendingRoundUp,
-        loadTotalSaved // Export this so it can be called manually
+        loadTotalSaved,
+        
+        // Withdrawal state
+        pendingWithdrawal,
+        withdrawalCountdown,
+        isWithdrawing,
+        isClaiming,
+        
+        // Withdrawal methods
+        executeWithdrawal,
+        executeClaimWithdrawal,
+        loadPendingWithdrawal,
+        cancelWithdrawal
     };
 
     return (
