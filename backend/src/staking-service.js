@@ -23,16 +23,17 @@ class StakingService {
     this.provider = new JsonRpcProvider(RPC);
     this.wallet = new Wallet(PRIVATE_KEY, this.provider);
     this.contract = new ethers.Contract(STAKING_CONTRACT, STAKING_ABI, this.wallet);
-  }
+	this.delegatorAddress = this.wallet.address; // Adresse du délégataire
+}
 
   /**
    * Stake des CHZ sur le contrat
    * @param {string|number} amountChz - Montant en CHZ à staker
    * @param {string} delegatorAddr - Adresse du délégataire
    */
-  async stakeChz(amountChz, delegatorAddr) {
+  async stakeChz(amountChz) {
     try {
-      const tx = await this.contract.stake(delegatorAddr, {
+      const tx = await this.contract.stake(this.delegatorAddress, {
         value: parseEther(amountChz.toString()),
         gasLimit: 300000
       });
@@ -51,10 +52,10 @@ class StakingService {
    * @param {string} fundAddr - Adresse du fond
    * @param {string|number} amountChz - Montant en CHZ à unstaker
    */
-  async unstakeChz(fundAddr, amountChz) {
+  async unstakeChz(amountChz) {
     try {
       const amountWei = parseEther(amountChz.toString());
-      const tx = await this.contract.unstake(fundAddr, amountWei, {
+      const tx = await this.contract.unstake(this.delegatorAddress, amountWei, {
         gasLimit: 200000
       });
       console.log("Unstake TX sent:", tx.hash);
@@ -71,9 +72,9 @@ class StakingService {
    * Récupère les récompenses
    * @param {string} recipient - Adresse du destinataire
    */
-  async claimRewards(recipient) {
+  async claimRewards() {
     try {
-      const tx = await this.contract.claim(recipient, {
+      const tx = await this.contract.claim(this.delegatorAddress, {
         gasLimit: 200000
       });
       console.log("Claim TX sent:", tx.hash);

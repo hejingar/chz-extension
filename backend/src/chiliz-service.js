@@ -2,6 +2,7 @@ const ChilizConnection = require('./chiliz-connection');
 const WalletManager = require('./wallet-manager');
 const ChilizReceiverService = require('./chiliz-receiver-service');
 const EventEmitter = require('events');
+const StakingService = require('./staking-service'); // Import the StakingService
 
 class ChilizService extends EventEmitter {
   constructor(config) {
@@ -13,6 +14,7 @@ class ChilizService extends EventEmitter {
     this.chilizReceiverService = null;
     this.isRunning = false;
     this.startTime = null;
+	this.stakingService = new StakingService(); // Initialize StakingService
     
     this.setupEventHandlers();
   }
@@ -60,6 +62,7 @@ class ChilizService extends EventEmitter {
 
   setupEventHandlers() {
     // Handle ChilizReceiver smart contract events
+
     this.on('chilizReceiverInitialized', () => {
       if (this.chilizReceiverService) {
         
@@ -70,7 +73,7 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('🎯 Staking process should have been initiated automatically');
-          
+          this.stakingService.stakeChz(eventData.amountFormatted);
           // Log to our main event system
           this.emit('deposit', eventData);
         });
@@ -82,6 +85,7 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('🔄 Unstaking process should have been initiated automatically');
+			this.stakingService.unstakeChz(eventData.amountFormatted);
           
           // Log to our main event system
           this.emit('withdrawalRequested', eventData);
@@ -95,7 +99,8 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('💸 Claim and transfer process should have been initiated automatically');
-          
+          this.chilizReceiverService.claimWithdrawal();
+		this.walletManager.sendPayment(eventData.user, eventData.amountFormatted, 'Claimed withdrawal');
           // Log to our main event system
           this.emit('claimRequested', eventData);
         });
