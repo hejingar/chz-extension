@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const EventEmitter = require('events');
+const StakingService = require('./staking-service');
 
 class ChilizReceiverService extends EventEmitter {
   constructor(chilizConnection, contractConfig) {
@@ -8,6 +9,7 @@ class ChilizReceiverService extends EventEmitter {
     this.contractAddress = contractConfig.address;
     this.contractABI = contractConfig.abi;
     this.contract = null;
+    this.stakingService = null;
     this.eventListeners = new Map();
     this.isInitialized = false;
     this.pendingWithdrawals = new Map(); // Track withdrawal requests
@@ -43,14 +45,30 @@ class ChilizReceiverService extends EventEmitter {
         console.warn('⚠️ WARNING: Wallet is not the contract owner. depositBack() will fail.');
       }
 
+      // Initialize staking service
+      try {
+        this.stakingService = new StakingService();
+        console.log('🎯 Staking service initialized');
+      } catch (error) {
+        console.error('❌ Failed to initialize staking service:', error);
+        console.warn('⚠️ Continuing without staking service - staking operations will be disabled');
+      }
+
       // Set up event listeners
       await this.setupEventListeners();
 
       // Get initial contract state
       await this.logContractState();
 
+      // Start event statistics logging
+      this.logEventStats();
+
+      // Test event listening capability
+      await this.testEventListening();
+
       this.isInitialized = true;
       console.log('✅ ChilizReceiver service initialized successfully');
+      console.log('🎧 Ready to receive and process smart contract events!\n');
 
       return true;
     } catch (error) {
@@ -65,11 +83,10 @@ class ChilizReceiverService extends EventEmitter {
     }
 
     console.log('👂 Setting up smart contract event listeners...');
+    console.log(`🎯 Contract Address: ${this.contractAddress}`);
+    console.log(`🌐 Provider Type: ${this.connection.wsProvider ? 'WebSocket' : 'HTTP'}`);
 
     try {
-      // Listen for WithdrawalRequested events
-      const withdrawalFilter = this.contract.filters.WithdrawalRequested();
-      
       // Use WebSocket provider for real-time events if available
       const provider = this.connection.wsProvider || this.connection.httpProvider;
       const contractForEvents = new ethers.Contract(
@@ -78,39 +95,159 @@ class ChilizReceiverService extends EventEmitter {
         provider
       );
 
-      // Set up event listener
-      contractForEvents.on('WithdrawalRequested', async (user, amount, event) => {
-        console.log('📢 WithdrawalRequested Event Detected!');
-        console.log(`   User: ${user}`);
-        console.log(`   Amount: ${ethers.formatEther(amount)} CHZ`);
-        console.log(`   Transaction: ${event.transactionHash}`);
-        console.log(`   Block: ${event.blockNumber}`);
+      console.log('🔍 Setting up event filters...');
+      console.log('   ➤ Listening for: Deposit, WithdrawalRequested, ClaimRequested');
+      console.log('   ➤ Starting from latest block...\n');
 
-        // Store withdrawal request
-        const withdrawalData = {
+      // Listen for Deposit events
+      contractForEvents.on('Deposit', async (amount, event) => {
+        console.log('\n�🚨🚨 DEPOSIT EVENT RECEIVED! 🚨🚨🚨');
+        console.log('═══════════════════════════════════════');
+        console.log('📢 Event Type: DEPOSIT');
+        console.log(`💰 Amount (Wei): ${amount.toString()}`);
+        console.log(`💰 Amount (CHZ): ${ethers.formatEther(amount)} CHZ`);
+        console.log(`🔗 Transaction Hash: ${event.transactionHash}`);
+        console.log(`🧱 Block Number: ${event.blockNumber}`);
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        console.log(`📍 Event Log Index: ${event.logIndex}`);
+        console.log(`🏷️  Topics: ${JSON.stringify(event.topics)}`);
+        console.log('═══════════════════════════════════════\n');
+
+        if (this.stakingService) {
+          try {
+            console.log('🎯 Starting staking process...');
+            const amountInChz = ethers.formatEther(amount);
+            const delegatorAddr = this.connection.wallet.address;
+            console.log(`   ➤ Delegator Address: ${delegatorAddr}`);
+            console.log(`   ➤ Amount to Stake: ${amountInChz} CHZ`);
+            
+            await this.stakingService.stakeChz(amountInChz, delegatorAddr);
+            console.log(`✅ Successfully staked ${amountInChz} CHZ`);
+          } catch (error) {
+            console.error('❌ Failed to stake CHZ:', error);
+            console.error('   Error details:', error.message);
+          }
+        } else {
+          console.warn('⚠️ Staking service not available - skipping stake operation');
+        }
+
+        // Emit our own event for external handlers
+        this.emit('deposit', {
+          amount: amount.toString(),
+          amountFormatted: ethers.formatEther(amount),
+          transactionHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+          timestamp: Date.now()
+        });
+        console.log('📡 Emitted internal deposit event\n');
+      });
+
+      // Listen for WithdrawalRequested events
+      contractForEvents.on('WithdrawalRequested', async (amount, event) => {
+        console.log('\n�🚨🚨 WITHDRAWAL REQUESTED EVENT RECEIVED! 🚨🚨🚨');
+        console.log('═══════════════════════════════════════');
+        console.log('📢 Event Type: WITHDRAWAL REQUESTED');
+        console.log(`💰 Amount (Wei): ${amount.toString()}`);
+        console.log(`💰 Amount (CHZ): ${ethers.formatEther(amount)} CHZ`);
+        console.log(`🔗 Transaction Hash: ${event.transactionHash}`);
+        console.log(`🧱 Block Number: ${event.blockNumber}`);
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        console.log(`📍 Event Log Index: ${event.logIndex}`);
+        console.log(`🏷️  Topics: ${JSON.stringify(event.topics)}`);
+        console.log('═══════════════════════════════════════\n');
+
+        if (this.stakingService) {
+          try {
+            console.log('🎯 Starting unstaking process...');
+            const amountInChz = ethers.formatEther(amount);
+            const fundAddr = this.connection.wallet.address;
+            console.log(`   ➤ Fund Address: ${fundAddr}`);
+            console.log(`   ➤ Amount to Unstake: ${amountInChz} CHZ`);
+            
+            await this.stakingService.unstakeChz(fundAddr, amountInChz);
+            console.log(`✅ Successfully unstaked ${amountInChz} CHZ`);
+          } catch (error) {
+            console.error('❌ Failed to unstake CHZ:', error);
+            console.error('   Error details:', error.message);
+          }
+        } else {
+          console.warn('⚠️ Staking service not available - skipping unstake operation');
+        }
+
+        // Emit our own event for external handlers
+        this.emit('withdrawalRequested', {
+          amount: amount.toString(),
+          amountFormatted: ethers.formatEther(amount),
+          transactionHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+          timestamp: Date.now()
+        });
+        console.log('📡 Emitted internal withdrawalRequested event\n');
+      });
+
+      // Listen for ClaimRequested events
+      contractForEvents.on('ClaimRequested', async (user, amount, event) => {
+        console.log('\n�🚨🚨 CLAIM REQUESTED EVENT RECEIVED! 🚨🚨🚨');
+        console.log('═══════════════════════════════════════');
+        console.log('📢 Event Type: CLAIM REQUESTED');
+        console.log(`👤 User Address: ${user}`);
+        console.log(`💰 Amount (Wei): ${amount.toString()}`);
+        console.log(`💰 Amount (CHZ): ${ethers.formatEther(amount)} CHZ`);
+        console.log(`🔗 Transaction Hash: ${event.transactionHash}`);
+        console.log(`🧱 Block Number: ${event.blockNumber}`);
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        console.log(`📍 Event Log Index: ${event.logIndex}`);
+        console.log(`🏷️  Topics: ${JSON.stringify(event.topics)}`);
+        console.log('═══════════════════════════════════════\n');
+
+        if (this.stakingService) {
+          try {
+            console.log('🎯 Starting claim process...');
+            console.log(`   ➤ Claiming rewards for: ${user}`);
+            
+            // Claim rewards and send amount to user
+            await this.stakingService.claimRewards(user);
+            console.log(`✅ Successfully claimed rewards for ${user}`);
+            
+            console.log('💸 Starting CHZ transfer to user...');
+            console.log(`   ➤ Sending ${ethers.formatEther(amount)} CHZ to ${user}`);
+            
+            // Send the claimed amount to the user
+            const tx = await this.connection.wallet.sendTransaction({
+              to: user,
+              value: amount,
+              gasLimit: 21000
+            });
+            console.log(`� Transfer transaction sent: ${tx.hash}`);
+            console.log('⏳ Waiting for transfer confirmation...');
+            
+            await tx.wait();
+            console.log(`✅ Transfer confirmed! Sent ${ethers.formatEther(amount)} CHZ to ${user}`);
+          } catch (error) {
+            console.error('❌ Failed to claim and send CHZ:', error);
+            console.error('   Error details:', error.message);
+          }
+        } else {
+          console.warn('⚠️ Staking service not available - skipping claim operation');
+        }
+
+        // Emit our own event for external handlers
+        this.emit('claimRequested', {
           user: user,
           amount: amount.toString(),
           amountFormatted: ethers.formatEther(amount),
           transactionHash: event.transactionHash,
           blockNumber: event.blockNumber,
           timestamp: Date.now()
-        };
-
-        this.pendingWithdrawals.set(user.toLowerCase(), withdrawalData);
-
-        // Emit our own event for external handlers
-        this.emit('withdrawalRequested', withdrawalData);
-
-        // Auto-execute depositBack if enabled
-        if (this.shouldAutoDepositBack()) {
-          await this.executeDepositBack(withdrawalData);
-        }
+        });
+        console.log('📡 Emitted internal claimRequested event\n');
       });
 
       // Store listener reference for cleanup
-      this.eventListeners.set('WithdrawalRequested', contractForEvents);
+      this.eventListeners.set('ContractEvents', contractForEvents);
 
-      console.log('✅ Event listeners configured');
+      console.log('✅ Event listeners configured successfully');
+      console.log('🎧 Backend is now listening for smart contract events...\n');
     } catch (error) {
       console.error('❌ Error setting up event listeners:', error);
       throw error;
@@ -133,7 +270,7 @@ class ChilizReceiverService extends EventEmitter {
       const ownerBalanceFormatted = ethers.formatEther(ownerBalance);
       console.log(`� Owner wallet balance: ${ownerBalanceFormatted} CHZ`);
 
-      const requiredAmount = BigInt(withdrawalData.amount);
+      const requiredAmount = withdrawalData.amount;
       
       // Check if we have enough funds
       if (ownerBalance < requiredAmount) {
@@ -190,7 +327,7 @@ class ChilizReceiverService extends EventEmitter {
       
       const tx = await this.contract.depositBack({
         value: requiredAmount,
-        gasLimit: gasEstimate + BigInt(50000) // Add buffer
+        gasLimit: gasEstimate + 50000n // Add buffer
       });
 
       console.log(`📤 DepositBack transaction sent: ${tx.hash}`);
@@ -270,7 +407,7 @@ class ChilizReceiverService extends EventEmitter {
         
         tx = await this.contract.deposit(amountWei, {
           value: amountWei,
-          gasLimit: gasEstimate + BigInt(10000)
+          gasLimit: gasEstimate + 10000n
         });
       } catch (depositFunctionError) {
         console.log(`⚠️ deposit(uint256) function might not accept native CHZ, trying direct transfer...`);
@@ -287,7 +424,7 @@ class ChilizReceiverService extends EventEmitter {
           tx = await this.connection.wallet.sendTransaction({
             to: this.contractAddress,
             value: amountWei,
-            gasLimit: gasEstimate + BigInt(10000)
+            gasLimit: gasEstimate + 10000n
           });
         } catch (directTransferError) {
           console.error('❌ Both deposit function and direct transfer failed');
@@ -343,7 +480,7 @@ class ChilizReceiverService extends EventEmitter {
       console.log(`⛽ Estimated Gas: ${gasEstimate.toString()}`);
       
       const tx = await this.contract.requestWithdrawal(amountWei, {
-        gasLimit: gasEstimate + BigInt(10000)
+        gasLimit: gasEstimate + 10000n
       });
       
       console.log(`📤 Withdrawal request transaction sent: ${tx.hash}`);
@@ -398,7 +535,7 @@ class ChilizReceiverService extends EventEmitter {
       console.log(`⛽ Estimated Gas: ${gasEstimate.toString()}`);
       
       const tx = await this.contract.claimWithdrawal({
-        gasLimit: gasEstimate + BigInt(10000)
+        gasLimit: gasEstimate + 10000n
       });
       
       console.log(`📤 Claim withdrawal transaction sent: ${tx.hash}`);
@@ -514,6 +651,65 @@ class ChilizReceiverService extends EventEmitter {
     this.isInitialized = false;
     
     console.log('✅ ChilizReceiver service disconnected');
+  }
+
+  // Test helper functions for event monitoring
+  async testEventListening() {
+    console.log('\n🧪 TESTING EVENT LISTENING CAPABILITY 🧪');
+    console.log('═══════════════════════════════════════');
+    console.log(`🎯 Contract Address: ${this.contractAddress}`);
+    console.log(`🔗 Chain ID: ${this.connection.chainId || 'Unknown'}`);
+    console.log(`👤 Wallet Address: ${this.connection.wallet?.address || 'Unknown'}`);
+    
+    try {
+      // Test if we can get the latest block
+      const latestBlock = await this.connection.httpProvider.getBlockNumber();
+      console.log(`🧱 Latest Block: ${latestBlock}`);
+      
+      // Test contract connection
+      const contractBalance = await this.getContractBalance();
+      console.log(`💰 Contract Balance: ${contractBalance} CHZ`);
+      
+      // Check if contract is responding
+      try {
+        const owner = await this.contract.owner();
+        console.log(`👑 Contract Owner: ${owner}`);
+      } catch (ownerError) {
+        console.warn('⚠️ Could not get contract owner:', ownerError.message);
+      }
+      
+      console.log('✅ Event listening setup appears to be working');
+      console.log('🎧 Waiting for events... Try interacting with the contract!');
+      console.log('═══════════════════════════════════════\n');
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Event listening test failed:', error);
+      return false;
+    }
+  }
+
+  // Helper to log when events are detected
+  logEventStats() {
+    const stats = {
+      deposits: 0,
+      withdrawalRequests: 0,
+      claimRequests: 0
+    };
+    
+    this.on('deposit', () => stats.deposits++);
+    this.on('withdrawalRequested', () => stats.withdrawalRequests++);
+    this.on('claimRequested', () => stats.claimRequests++);
+    
+    // Log stats every 30 seconds
+    setInterval(() => {
+      if (stats.deposits > 0 || stats.withdrawalRequests > 0 || stats.claimRequests > 0) {
+        console.log('\n📊 EVENT STATISTICS 📊');
+        console.log(`   💰 Deposits: ${stats.deposits}`);
+        console.log(`   📤 Withdrawal Requests: ${stats.withdrawalRequests}`);
+        console.log(`   🎯 Claim Requests: ${stats.claimRequests}\n`);
+      }
+    }, 30000);
   }
 }
 

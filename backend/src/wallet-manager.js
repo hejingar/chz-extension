@@ -1,4 +1,5 @@
 const EventEmitter = require('events');
+const { ethers } = require('ethers');
 
 class WalletManager extends EventEmitter {
   constructor(chilizConnection) {
@@ -170,13 +171,27 @@ class WalletManager extends EventEmitter {
   async estimateTransactionFee(toAddress, amount) {
     try {
       const gasPrice = await this.connection.getGasPrice();
-      const gasLimit = 21000; // Standard transfer
+      
+      // Estimate gas limit based on transaction type
+      let gasLimit = 21000; // Default for basic transfer
+      
+      if (toAddress && amount) {
+        try {
+          gasLimit = await this.connection.provider.estimateGas({
+            to: toAddress,
+            value: ethers.parseEther(amount.toString())
+          });
+        } catch (estimateError) {
+          console.warn('Could not estimate gas, using default:', estimateError.message);
+          gasLimit = 21000;
+        }
+      }
       
       return {
         gasPrice: gasPrice.gasPrice,
         gasLimit: gasLimit,
-        estimatedFee: gasPrice.gasPrice * BigInt(gasLimit),
-        estimatedFeeInCHZ: ethers.formatEther(gasPrice.gasPrice * BigInt(gasLimit))
+        estimatedFee: gasPrice.gasPrice * gasLimit,
+        estimatedFeeInCHZ: ethers.formatEther(gasPrice.gasPrice * gasLimit)
       };
     } catch (error) {
       console.error('Error estimating transaction fee:', error);
