@@ -374,12 +374,6 @@ function App() {
                               <p>⏰ Your withdrawal will be ready to claim in <strong>{formatCountdown(withdrawalCountdown)}</strong></p>
                               <p>💡 The 1-hour waiting period is a security measure to protect your funds.</p>
                             </div>
-                            <button 
-                              className="btn btn-outline cancel-btn"
-                              onClick={handleCancelWithdrawal}
-                            >
-                              Cancel Withdrawal
-                            </button>
                           </div>
                         )}
                         
