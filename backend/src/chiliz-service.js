@@ -99,7 +99,7 @@ class ChilizService extends EventEmitter {
           console.log(`   Transaction: ${eventData.transactionHash}`);
           console.log(`   Block: ${eventData.blockNumber}`);
           console.log('💸 Claim and transfer process should have been initiated automatically');
-          this.chilizReceiverService.claimWithdrawal();
+          this.stakingService.claimRewards();
 		this.walletManager.sendPayment(eventData.user, eventData.amountFormatted, 'Claimed withdrawal');
           // Log to our main event system
           this.emit('claimRequested', eventData);
